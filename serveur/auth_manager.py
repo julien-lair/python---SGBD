@@ -1,7 +1,7 @@
 import getpass
 import hashlib
 import os
-
+DEV=True
 class AuthManager():
     
     def __init__(self):
@@ -9,13 +9,16 @@ class AuthManager():
         self.isConnected = False
         self.maxTentative = 3
     def new_connection(self):
-        if not(self.file_exist()):
-            self.register()
-        while self.isConnected == False and self.maxTentative > 0:
-            self.login()
-            print("\n")
-        if self.maxTentative <= 0:
-            print("Trop de tentative")
+        if DEV:
+            self.isConnected = True
+        else:
+            if not(self.file_exist()):
+                self.register()
+            while self.isConnected == False and self.maxTentative > 0:
+                self.login()
+                print("\n")
+            if self.maxTentative <= 0:
+                print("Trop de tentative")
 
     def register(self):
         print("Créer votre compte")

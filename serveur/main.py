@@ -1,15 +1,8 @@
-from auth_manager import AuthManager
-
+from server import Server
+from database import Database
 def main():
-    auth = AuthManager()
-    #serveur TCP
-    # écoute à l'infinie, si quelqu'un se connecte alors : 
-    #Auth 
-    auth.new_connection()
-    if(auth.isConnected):
-        print("Bienvenue sur le serveur :)")
-    else:
-        return 1
-    return 0
+    db = Database()
+    server = Server("127.0.0.1",1234,db)
+    server.start()
 if __name__ == "__main__":
     main()
