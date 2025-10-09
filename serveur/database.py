@@ -70,12 +70,13 @@ class Database:
         print("Je reçoit bien la requete")
         parser = Parser()
         parser.parse(request)
-        if parser.action == "CREATE":
-            self.create_table(parser.table, parser.columns_name, parser.columns_type)
-        elif parser.action == "DROP":
-            self.delete_table(parser.table)
-        else:
-            print("Une erreur")
+        if parser.expressionValide:
+            if parser.action == "CREATE":
+                self.create_table(parser.table, parser.columns_name, parser.columns_type)
+            elif parser.action == "DROP":
+                self.delete_table(parser.table)
+            else:
+                print("Une erreur")
     
     def create_header(self,name,columns,type):
         """
