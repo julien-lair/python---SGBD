@@ -67,6 +67,9 @@ class Parser:
                             type = valueWithoutSpace.split()[1]
 
                             if self.verify_colomn_name(col.strip()):
+                                if col.strip() in self.columns_name:
+                                    print("Erreur : deux colonnes portent le même nom")
+                                    return
                                 self.columns_name.append(col.strip())
                             else:
                                 print(f"Erreur : le nom {col} n'est pas valide")
@@ -77,6 +80,8 @@ class Parser:
                             else:
                                 print(f"Erreur : le type {type} n'est pas valide")
                         
+                       
+                        self.expressionValide = True
 
                 else:
                     print("Erreur : expréssion invalide")

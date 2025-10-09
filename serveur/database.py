@@ -26,8 +26,9 @@ class Database:
             if(type[columns.index("_id")] == "SERIAL"):
                 verificationId = True 
             else:
-                raise ValueError("Le champs _id doit être de type SERIAL, vous pouvez ne pas spécifier _id il sera ajouter automatiquement")
-
+                print("Le champs _id doit être de type SERIAL, vous pouvez ne pas spécifier _id il sera ajouter automatiquement")
+                return 
+            
         if verificationId == False: 
             #on ajoute un champ _id au début
             columns.insert(0,"_id")
@@ -72,6 +73,7 @@ class Database:
         parser.parse(request)
         if parser.expressionValide:
             if parser.action == "CREATE":
+                print("yes")
                 self.create_table(parser.table, parser.columns_name, parser.columns_type)
             elif parser.action == "DROP":
                 self.delete_table(parser.table)
