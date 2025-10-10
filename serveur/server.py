@@ -16,7 +16,6 @@ class Server:
 
 
     def newClient(self):
-        print("Je détecte un client qui arrive")
         auth = AuthManager()
         auth.new_connection()
         if not auth.isConnected:
@@ -24,7 +23,7 @@ class Server:
         
         print("Bienvenue sur le serveur :)")
         while True:
-            request = input("> ").strip()
+            request = input("\n> ").strip()
             self.database.execute(request)
 
     def response(self):

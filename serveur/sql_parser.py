@@ -14,6 +14,7 @@ class Parser:
         self.table = ""
         self.columns_name = []
         self.columns_type = []
+        self.values = []
 
     def parse(self,string):
        
@@ -37,6 +38,8 @@ class Parser:
             self.create(string[:-1])
         elif action == "DROP":
             self.drop(stringElement)
+        elif action == "INSERT":
+            self.insert(string[:-1])
         else:
             print(f"{action} n'est pas reconnue")
             self.expressionValide = False
@@ -109,6 +112,61 @@ class Parser:
                 print("Erreur : expréssion invalide")
         except IndexError:
             print("Erreur : expréssion invalide")
+
+
+    def insert(self,string):
+        """
+        INSERT INTO users VALUES ('Richard', 25, 20000, false);
+
+        INSERT INTO users (firstname, age, salary, disabled) VALUES ('Richard', 25, 20000, false);
+        """
+        self.action = "INSERT"
+        expressionFirstPart = string.strip().split("(")[0].split()
+        try:
+            if expressionFirstPart[1] == "INTO":
+                if len(expressionFirstPart) == 3 or len(expressionFirstPart) == 4:
+                    
+                    if self.verify_table_name(expressionFirstPart[2].strip()):
+                        #CREATE TABLE name est OK
+                        self.table = expressionFirstPart[2].strip()
+                        
+                        expressionIsWithColumnsName = False
+                        if(len(expressionFirstPart) == 4):
+                            if expressionFirstPart[3] == "VALUES":
+                                #expression de type : INSERT INTO users VALUES ('Richard', 25, 20000, false);
+                                expressionIsWithColumnsName = False
+                            else:
+                                print("Erreur: L'expression n'est pas valide")
+                                return
+                        else:
+                            #expression de type : INSERT INTO users (firstname, age, salary, disabled) VALUES ('Richard', 25, 20000, false);
+                            expressionIsWithColumnsName = True
+
+
+                        if expressionIsWithColumnsName:
+                            #On récupère le nom des colonnes 
+                            colonnes = string.strip().split("(")[1].split(")")[0].strip().split(",")
+                            for col in colonnes:
+                                if self.verify_colomn_name(col.strip()):
+                                    self.columns_name.append(col.strip())
+                                else:
+                                    print("Erreur : un nom de colonne ne convient pas.")
+                                    return
+
+                            if string.strip().split(")")[1].strip().split()[0] != "VALUES":
+                                print("Erreur: le mot clé VALUES est manquant")
+                                return
+
+                        self.values = string.strip().split("(")[-1].strip().split(")")[0].strip().split(",")
+                        self.expressionValide = True
+
+                else:
+                    print("Erreur : expréssion invalide")
+            else:
+                print(f"Erreur : expréssion invalide ")
+        except IndexError:
+            print("Erreur : expréssion invalide")
+
 
     def verify_table_name(self,name)->bool:
         if not re.match(r"^[A-Za-z][A-Za-z0-9_]*$", name):
