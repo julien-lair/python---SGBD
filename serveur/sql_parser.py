@@ -16,22 +16,14 @@ class Parser:
         self.columns_type = []
         self.values = []
 
-    def parse(self,string):
-       
-        """
-        CREATE TABLE users (id SERIAL, firstname TEXT, age INT, salary FLOAT, disabled BOOL);
-        
-        DROP TABLE users;
-        """
-        
-        
-        if string[-1] != ";":
-            print("L'expréssion doit finir par un ;")
-            self.expressionValide = False
-            return
+    def parse(self,string): 
+
+        if self.verify_pointVirgule(string):
+            stringElement = string[:-1].split() #on supprime le ;
+        else:
+                return
         
 
-        stringElement = string[:-1].split() #on supprime le ;
         #On regarde l'action 
         action = stringElement[0]
         if action == "CREATE":
@@ -40,12 +32,11 @@ class Parser:
             self.drop(stringElement)
         elif action == "INSERT":
             self.insert(string[:-1])
+        elif action == "SELECT":
+            self.select(string[:-1])
         else:
             print(f"{action} n'est pas reconnue")
             self.expressionValide = False
-
-
-
 
     def create(self, string):
         #   CREATE TABLE users (id SERIAL, firstname TEXT, age INT, salary FLOAT, disabled BOOL);
@@ -93,8 +84,6 @@ class Parser:
         except IndexError:
             print("Erreur : expréssion invalide")
 
-
-
     def drop(self,expression):
         #   DROP TABLE users
         self.action = "DROP"
@@ -113,11 +102,9 @@ class Parser:
         except IndexError:
             print("Erreur : expréssion invalide")
 
-
     def insert(self,string):
         """
         INSERT INTO users VALUES ('Richard', 25, 20000, false);
-
         INSERT INTO users (firstname, age, salary, disabled) VALUES ('Richard', 25, 20000, false);
         """
         self.action = "INSERT"
@@ -156,8 +143,55 @@ class Parser:
                             if string.strip().split(")")[1].strip().split()[0] != "VALUES":
                                 print("Erreur: le mot clé VALUES est manquant")
                                 return
+                        
+                        #on réucpère les valeurs à insérer après le VALUES
+                        #il peux il y avoir plusieurs lignes à ajouter en une fois
+                        print("Données à ajouter :")
+                        partAfterVALUES = string.strip().split("VALUES")[1].strip()
 
-                        self.values = string.strip().split("(")[-1].strip().split(")")[0].strip().split(",")
+                        ouvertureParenthese = False 
+                        ouvertureQuoteSimple = False  # ' 
+                        ouvertureQuoteDouble = False  # "
+
+                        lines = []
+                        lineStart = 0
+                        compteur = 0
+                        for caractere in partAfterVALUES:
+                            #on parcour chaque caratere récupérer les X lignes à ajouter 
+                            compteur += 1
+                            if(caractere == "(" and ouvertureParenthese == False and ouvertureQuoteSimple == False and ouvertureQuoteDouble == False):
+                                #début d'une lignes
+                                lineStart = compteur
+                                ouvertureParenthese = True
+                                continue
+                            if(caractere == "'" and  ouvertureParenthese and ouvertureQuoteSimple == False and ouvertureQuoteDouble == False):
+                                ouvertureQuoteSimple = True
+                                continue
+                            if(caractere == '"' and  ouvertureParenthese and ouvertureQuoteSimple == False and ouvertureQuoteDouble == False):
+                                ouvertureQuoteDouble = True
+                                continue
+                            if(caractere == "'" and  ouvertureParenthese and ouvertureQuoteSimple and ouvertureQuoteDouble == False):
+                                ouvertureQuoteSimple = False
+                                continue
+                            if(caractere == '"' and  ouvertureParenthese and ouvertureQuoteSimple == False and ouvertureQuoteDouble):
+                                ouvertureQuoteDouble = False
+                                continue
+                            if(caractere == ")" and ouvertureParenthese == True and ouvertureQuoteSimple == False and ouvertureQuoteDouble == False):
+                                #fin d'une lignes
+                                lines.append(partAfterVALUES[lineStart:compteur-1])
+                                ouvertureParenthese = False
+                                continue
+                            
+                        for line in lines:
+                            #print("-->.  ",end="")
+                            valueLine = []
+                            for elem in line.split(","):
+                                #print(elem + "  -  ",end="")
+                                valueLine.append(elem)
+                            self.values.append(valueLine)
+                        
+                        print(self.values)
+                        
                         self.expressionValide = True
 
                 else:
@@ -167,7 +201,9 @@ class Parser:
         except IndexError:
             print("Erreur : expréssion invalide")
 
-
+    def select(self,string):
+        return 
+    
     def verify_table_name(self,name)->bool:
         if not re.match(r"^[A-Za-z][A-Za-z0-9_]*$", name):
             print(f"Erreur : nom de table '{name}' invalide. Il doit commencer par une lettre et ne contenir que des caractères alphanumériques ou '_'.")
@@ -196,3 +232,9 @@ class Parser:
         print(f"Le type {type} n'est pas valide vous devez choisir : INT,FLOAT,TEXT,BOOL,SERIAL")
         return False
     
+    def verify_pointVirgule(self,string)->bool:
+        if string[-1] != ";":
+            print("L'expréssion doit finir par un ;")
+            self.expressionValide = False
+            return False
+        return True
