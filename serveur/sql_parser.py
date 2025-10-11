@@ -55,6 +55,10 @@ class Parser:
                         #on recupere les nom de colones et type 
                         colonnesNameAndType = string.strip().split("(")[1].split(")")[0].split(",")
 
+                        if string.strip().split("(")[1].split(")")[1].strip() != "":
+                            print("Erreur : argument indésirable")
+                            return
+                        
                         #on vérifie si les colonnes et types sont valide
                         for value in colonnesNameAndType:
                             
@@ -182,13 +186,17 @@ class Parser:
                                 lines.append(partAfterVALUES[lineStart:compteur-1])
                                 ouvertureParenthese = False
                                 continue
-                            
+                            if(caractere == " "):
+                                continue
+                            if(caractere!="," and ouvertureParenthese == False):
+                                print("Erreur : Commandes mal formaté")
+                                return
                         for line in lines:
                             #print("-->.  ",end="")
                             valueLine = []
                             for elem in line.split(","):
                                 #print(elem + "  -  ",end="")
-                                valueLine.append(elem)
+                                valueLine.append(elem.strip())
                             self.values.append(valueLine)
                         
                         if len(lines) == 0:
@@ -204,8 +212,47 @@ class Parser:
             print("Erreur : expréssion invalide")
 
     def select(self,string):
-        return 
-    
+        self.action = "SELECT"
+
+        #On récupère les colonnes à selectionner 
+        if " FROM " not in string:
+            print("Erreur : Il manque le FROM")
+            return
+
+        colonneSelectionner = string.split("FROM")[0].split("SELECT")[1].strip().split(",")
+        for col in colonneSelectionner:
+            if self.verify_colomn_name_select(col.strip()):
+                self.columns_name.append(col.strip())
+
+        tableName = string.split("FROM")[1].strip().split()[0].strip()
+        if self.verify_table_name(tableName.strip()):
+            self.table = tableName.strip()
+
+        try:
+            if string.split("FROM")[1].strip().split()[1].strip() != "":
+                if string.split("FROM")[1].strip().split()[1].strip() == "WHERE":
+                    print("WHERE ..")
+                elif string.split("FROM")[1].strip().split()[1].strip() == "ORDER" :
+                    try:
+                        if string.split("FROM")[1].strip().split()[2].strip() == "BY":
+                            print("ORDER BY ..")
+                        else:
+                            print("Erreur : Expréssion invalide")
+                            return
+                    except IndexError:
+                        print("Erreur : Expréssion invalide")
+                        return
+                elif string.split("FROM")[1].strip().split()[1].strip() == "OFFSET":
+                    print("OFFSET ..")
+                else:
+                    print(f'Erreur : expréssion invalide ({string.split("FROM")[1].strip().split()[1].strip()})')
+        except IndexError:
+            #normal pas de suite après SELECT col FROM table
+            self.expressionValide = True
+            print("pas de suite")
+            return 
+
+
     def describe(self,string):
         self.action = "DESCRIBE"
         if len(string.strip().split()) == 2: #Vérifie qu'il y a seulement 2 arguments
@@ -213,6 +260,9 @@ class Parser:
             if self.verify_table_name(tableName.strip()):
                 self.table = tableName.strip()
                 self.expressionValide = True
+        else:
+            print("Erreur : Argument indésirable")
+            return
 
     def verify_table_name(self,name)->bool:
         if not re.match(r"^[A-Za-z][A-Za-z0-9_]*$", name):
@@ -236,6 +286,11 @@ class Parser:
 
         return True
     
+    def verify_colomn_name_select(self,name)->bool:
+        if name in ["*"]:
+            return True
+        return self.verify_colomn_name(name)
+
     def verify_type(self,type)->bool:
         if type in authorizedType:
             return True

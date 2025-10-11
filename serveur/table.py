@@ -7,7 +7,9 @@ class Table:
         self.name = ""
         self.columns= []
         self.serialColumns = []
+        self.lines = []
         self.header_decoder()
+        self.load_raw()
         
     def insert(self,parser : Parser):
         if parser.table != self.name:
@@ -98,12 +100,51 @@ class Table:
                         break
                                  
             newLines.append(newLine)
-        
+            self.lines.append(newLine) #on ajoute à notre mémoire
+
         self.write_line(newLines)
 
-    def select(self,columns, conditions,order,limit,offset):
-        print("")
-    
+    def select(self,parser : Parser):
+        #PARTIE 1 : SELECT [*|col] FROM table
+
+        result = []
+        for line in self.lines: 
+            if len(parser.columns_name) == 1 and parser.columns_name[0] == "*": # cas où SELECT *
+                result.append(line)
+            else:
+                lineSelect = []
+                for colChoice in parser.columns_name:
+                    for col in line:
+                        if col["colonne"] == colChoice:
+                            lineSelect.append(col)
+                            break
+                if len(lineSelect)> 0:
+                    result.append(lineSelect)
+        
+
+
+        #PARTIE N : affichage résultat 
+        if len(result) > 0:
+            tailleColonne = 12
+
+            print("-" * (len(result[0]) * (tailleColonne+2) +1))
+            for _ in result[0]:
+                print(f'|{" "*(tailleColonne+1)}',end="")
+            print("|")
+            for col in result[0]:
+                print(f'| {col["colonne"]}{" "*(tailleColonne-len(str(col["colonne"])))}',end="")
+            print("|")
+            for _ in result[0]:
+                print(f'|{" "*(tailleColonne + 1)}',end="")
+            print("|")
+            print("-" * (len(result[0]) * (tailleColonne+2) +1))
+            for line in result:
+                for col in line:
+                    print(f'| {col["value"]}{" "*(tailleColonne-len(str(col["value"])))}',end="")
+                print("|")
+                print("-" * (len(result[0]) * (tailleColonne+2) +1))
+
+
     def update(self,conditions,values):
         print("")
     
@@ -179,14 +220,73 @@ class Table:
                 rowBytes += struct.pack("f", float(col["value"]))
             elif col["type"] == "TEXT":
                 textBytes = col["value"].encode("utf-8")
-                rowBytes += struct.pack("i", int(len(textBytes)))
+                rowBytes += struct.pack("I", int(len(textBytes)))
                 rowBytes += textBytes
             elif col["type"] == "BOOL":
                 rowBytes += struct.pack("?", bool(col["value"]))
             elif col["type"] == "SERIAL":
                 rowBytes += struct.pack("I", int(col["value"]))
         
-        return struct.pack("i",int(len(rowBytes))) + rowBytes
+        return rowBytes
+
+    def load_raw(self):
+        #on charge les lignes 
+
+       
+
+        try:
+            file = open(self.path, "rb")
+
+                #Premier temps on va après le header
+
+            sizeName = struct.unpack("I", file.read(4))[0]
+            file.seek(sizeName,1)
+
+            totalCol = struct.unpack("I", file.read(4))[0]
+
+            for _ in range(totalCol):
+                sizeNameCol = struct.unpack("I",file.read(4))[0]
+                file.seek(sizeNameCol,1)
+                file.seek(4,1)
+            
+            totalSerial = struct.unpack("I", file.read(4))[0]
+
+            compteurSerial = 0
+            for _ in range(totalSerial):
+                sizeColName = struct.unpack("I", file.read(4))[0]
+                file.seek(sizeColName,1)
+                #On récupère le compteur serial pour parcourir par la suite les n lignes
+                compteurSerial = struct.unpack("I", file.read(4))[0]
+
+            #fin du header
+            # On récupère les données 
+            for _ in range(compteurSerial):
+                line = copy.deepcopy(self.columns)
+                for col in line:
+                    col["value"] = None
+
+                for col in line:
+                    typeCol = col["type"]
+
+                    if typeCol == "INT":
+                        col["value"] = struct.unpack("i",file.read(4))[0]
+                    elif typeCol == "FLOAT":
+                        col["value"] = struct.unpack("f",file.read(4))[0]
+                    elif typeCol == "TEXT":
+                        sizeText = struct.unpack("I",file.read(4))[0]
+                        col["value"] = file.read(sizeText).decode("utf-8")
+                    elif typeCol == "BOOL":
+                        col["value"] = struct.unpack("?",file.read(1))[0]
+                    elif typeCol == "SERIAL":
+                        col["value"] = struct.unpack("I",file.read(4))[0]
+                self.lines.append(line)
+            
+            file.close()
+        except Exception as e:
+            print("Erreur : une erreur lors de la lecture des donnée de la table.")
+            print(e)
+
+
 
 
     def header_decoder(self):

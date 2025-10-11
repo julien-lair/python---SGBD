@@ -80,6 +80,8 @@ class Database:
                 self.insert_table(parser)
             elif parser.action == "DESCRIBE":
                 self.describe_table(parser)
+            elif parser.action == "SELECT":
+                self.select_table(parser)
             else:
                 print("Une erreur")
     
@@ -145,5 +147,13 @@ class Database:
             for table in self.tables:
                 if table.name == parser.table:
                     table.describe()
+                    return 
+            print("Erreur : la table est inconnue")
+    
+    def select_table(self,parser : Parser):
+        if parser.action == "SELECT":
+            for table in self.tables:
+                if table.name == parser.table:
+                    table.select(parser)
                     return 
             print("Erreur : la table est inconnue")
