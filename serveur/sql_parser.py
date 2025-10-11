@@ -146,7 +146,6 @@ class Parser:
                         
                         #on réucpère les valeurs à insérer après le VALUES
                         #il peux il y avoir plusieurs lignes à ajouter en une fois
-                        print("Données à ajouter :")
                         partAfterVALUES = string.strip().split("VALUES")[1].strip()
 
                         ouvertureParenthese = False 
@@ -190,8 +189,9 @@ class Parser:
                                 valueLine.append(elem)
                             self.values.append(valueLine)
                         
-                        print(self.values)
-                        
+                        if len(lines) == 0:
+                            print("Erreur : Veuillez spécifier des valeurs")
+                            return
                         self.expressionValide = True
 
                 else:

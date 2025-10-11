@@ -2,7 +2,7 @@ from sql_parser import Parser
 import os
 import struct 
 from table import Table
-
+from typing import List
 
 
 class Database:
@@ -10,7 +10,7 @@ class Database:
     def __init__(self):
         self.databaseDir = os.path.dirname(__file__) +  "/data/"
         self.fileExtension = ".db"
-        self.tables = []
+        self.tables: List[Table] = []
         self.load_table()
     def create_table(self, name, columns : list[str], type : list[str]):
         #Vérification si la table existe déjà
@@ -37,7 +37,7 @@ class Database:
 
         header = self.create_header(name,columns,type)
        
-        #On ajoute le tous dans un nouveau .db
+        #On ajoute dans un nouveau .db
         file = open(self.databaseDir + name + self.fileExtension, "wb")
         file.write(header)
         file.close()
@@ -45,6 +45,7 @@ class Database:
         #on ajoute la table à notre mémoire 
         table = Table(self.databaseDir + name + self.fileExtension)
         self.tables.append(table)
+
     def delete_table(self,name):
         #DROP TABLE name 
         #Vérification si la table éxiste
@@ -68,46 +69,72 @@ class Database:
                 
     
     def execute(self,request):
-        print("Je reçoit bien la requete")
         parser = Parser()
         parser.parse(request)
         if parser.expressionValide:
             if parser.action == "CREATE":
-                print("yes")
                 self.create_table(parser.table, parser.columns_name, parser.columns_type)
             elif parser.action == "DROP":
                 self.delete_table(parser.table)
+            elif parser.action == "INSERT":
+                self.insert_table(parser)
             else:
                 print("Une erreur")
     
     def create_header(self,name,columns,type):
         """
         L'encodage se fera de la façon suivante : 
-        name||column:type|column:type|...||serialColumn:0|...
+        [size_name]name[number_col][size_colX]colX[encode_type_colX][number_serial][size_colSerialX]colSerialX[valeur_serial]
+
+        encode_type_colX : 
+        "INT"     1
+        "FLOAT"   2
+        "TEXT"    3
+        "BOOL"    4
+        "SERIAL"  5
 
         return : header_size header 
         """
-        header = name + "||"
+        header_bytes = b""
+
+        name_encode = name.encode("utf-8")
+        header_bytes += struct.pack("I",int(len(name_encode))) + name_encode
+
+        nombreColonne = len(columns)
+        header_bytes += struct.pack("I",int(nombreColonne))
+
+        serial_col = []
+        for col in columns:
+            col_encode = col.encode("utf-8")
+            header_bytes += struct.pack("I", int(len(col_encode))) + col_encode
+
+            type_col = type[columns.index(col)]
+            if type_col == "INT":
+                header_bytes += struct.pack("I", int(1))
+            elif type_col == "FLOAT":
+                header_bytes += struct.pack("I", int(2))
+            elif type_col == "TEXT":
+                header_bytes += struct.pack("I", int(3))
+            elif type_col == "BOOL":
+                header_bytes += struct.pack("I", int(4))
+            elif type_col == "SERIAL":
+                serial_col.append(col)
+                header_bytes += struct.pack("I", int(5))
         
-        columnsSerial = []
-        for i in range(len(columns)):
-            header += f"{columns[i]}:{type[i]}|"
+        
+        header_bytes += struct.pack("I",int(len(serial_col)))
+        for col in serial_col:
+            col_encode = col.encode("utf-8")
+            header_bytes += struct.pack("I",int(len(col_encode))) + col_encode + struct.pack("I",int(0))
 
-            #on check si il y a des columns type SERIAL 
-            if type[i] == "SERIAL":
-                columnsSerial.append(columns[i])
-        header += "|"
-
-        for elem in columnsSerial:
-            header += f"{elem}:0|"
-        header += "|"
-
-        #On encode le tous 
-
-        header_bytes = header.encode("utf-8")
-        header_size = len(header_bytes)
-
-        #ajoute la taille devant 
-        header_final = struct.pack("I",header_size) + header_bytes
-
-        return header_final
+        return header_bytes
+        
+    
+    def insert_table(self,parser : Parser):
+        if parser.action == "INSERT":
+            for table in self.tables:
+                if table.name == parser.table:
+                    table.insert(parser)
+                    return 
+            print("Erreur : la table est inconnue")
+            
