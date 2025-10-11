@@ -34,6 +34,8 @@ class Parser:
             self.insert(string[:-1])
         elif action == "SELECT":
             self.select(string[:-1])
+        elif action == "DESCRIBE":
+            self.describe(string[:-1])
         else:
             print(f"{action} n'est pas reconnue")
             self.expressionValide = False
@@ -204,6 +206,14 @@ class Parser:
     def select(self,string):
         return 
     
+    def describe(self,string):
+        self.action = "DESCRIBE"
+        if len(string.strip().split()) == 2: #Vérifie qu'il y a seulement 2 arguments
+            tableName = string.strip().split()[1]
+            if self.verify_table_name(tableName.strip()):
+                self.table = tableName.strip()
+                self.expressionValide = True
+
     def verify_table_name(self,name)->bool:
         if not re.match(r"^[A-Za-z][A-Za-z0-9_]*$", name):
             print(f"Erreur : nom de table '{name}' invalide. Il doit commencer par une lettre et ne contenir que des caractères alphanumériques ou '_'.")

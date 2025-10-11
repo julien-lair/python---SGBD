@@ -78,6 +78,8 @@ class Database:
                 self.delete_table(parser.table)
             elif parser.action == "INSERT":
                 self.insert_table(parser)
+            elif parser.action == "DESCRIBE":
+                self.describe_table(parser)
             else:
                 print("Une erreur")
     
@@ -137,4 +139,11 @@ class Database:
                     table.insert(parser)
                     return 
             print("Erreur : la table est inconnue")
-            
+    
+    def describe_table(self,parser : Parser):
+        if parser.action == "DESCRIBE":
+            for table in self.tables:
+                if table.name == parser.table:
+                    table.describe()
+                    return 
+            print("Erreur : la table est inconnue")
