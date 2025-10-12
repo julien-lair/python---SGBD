@@ -15,6 +15,10 @@ class Parser:
         self.columns_name = []
         self.columns_type = []
         self.values = []
+        self.where : NodeCondition = None
+        self.orderBy = None
+        self.limit = None
+        self.offset = None
 
     def parse(self,string): 
 
@@ -228,14 +232,69 @@ class Parser:
         if self.verify_table_name(tableName.strip()):
             self.table = tableName.strip()
         
-        self.whereCondition(string)
+        """
+        Règle : (tous les champs optionel)
+        WHERE après le FROM
+        WHERE avant ORDER BY
+        LIMIT peut être spécifier sant les autres (WHERE,ORDER BY), mais si ils sont présent doit être en dernier
+        OFFSET doit être après LIMIT
+        """
+        if "WHERE" in string: 
+            if string.split("FROM")[1].strip().split()[1].strip() == "WHERE":
+                self.whereCondition(string)
+            else:
+                print("Erruer : La condition WHERE doit se trouvé après la table sélectionner dans le FROM")
+                return
+            
+        if "ORDER BY" in string:
+            #vérifie si après WHERE (si WHERE existe)
+            if "WHERE" in string:
+                if "ORDER BY" in string.split("WHERE")[1]:
+                    #ORDER BY est bien après WHERE si il existe
+                    self.orderByCondition(string)
+                    return
+                else:
+                    print("Erreur: Le ORDER BY doit être après le WHERE")
+                    return
+            else:
+                self.orderByCondition(string)
+            
+        if "LIMIT" in string:
+            if "WHERE" in string:
+                if "LIMIT" in string.split("WHERE")[1]:
+                    #LIMIT après WHERE (si WHERE présent)
+                    self.limitCondition(string)
+                    return
+                else:
+                    print("Erreur: Le LIMIT doit être après le WHERE")
+                    return 
+                
+            if "ORDER BY" in string:
+                if "LIMIT" in string.split("ORDER BY")[1]:
+                    #LIMIT après ORDER BY (si ORDER BY présent)
+                    self.limitCondition(string)
+                    return
+                else:
+                    print("Erreur: Le LIMIT doit être après le ORDER BY")
+                    return 
+            self.limitCondition(string)
+            
 
-       
+        if "OFFSET" in string:
+            if "LIMIT" in string:
+                if "OFFSET" in string.split("LIMIT")[1]:
+                    #OFFSET après LIMIT (LIMIT obligatoire pour OFFSET)
+                    self.limitCondition(string)
+                    return
+            print("Erreur: OFFSET doit être après le LIMIT")
+            return         
+        
 
     def whereCondition(self,string):
         # WHERE (age > 25 and age <= 30) or disabled=false
         # WHERE age < 30
         # WHERE id = "h6avqpgxow6hggx0"
+
         whereCondition = string.split("WHERE")[1].strip()
         
         #On enleve tous ce qui pourrait être après le WHERE : 
@@ -361,7 +420,7 @@ class Parser:
                     return 
 
         rootNode.draw()
-            
+        self.where = rootNode   
 
 
 
@@ -371,6 +430,53 @@ class Parser:
         print(f"Condition : {conditionSecondpart}")
         """
 
+    def orderByCondition(self,string):
+        orderByCondition = string.split("ORDER BY")[1].strip()
+        
+        #On enleve tous ce qui pourrait être après le WHERE : 
+        wordlist = ["WHERE","LIMIT","OFFSET"] 
+        for word in wordlist:
+            orderByCondition = orderByCondition.split(word)[0].strip()
+        orderByConditionSplit = orderByCondition.split()
+        if(len(orderByConditionSplit)) == 2:
+            if self.verify_colomn_name(orderByConditionSplit[0].strip()):
+                if orderByConditionSplit[1].strip() == "ASC" or orderByConditionSplit[1].strip() == "DESC":
+                    self.orderBy = {"colonne":orderByConditionSplit[0].strip(),"order":orderByConditionSplit[1].strip()}
+                    return
+        print("Erreur : mauvaise condition dans le ORDER BY")
+        
+
+    def limitCondition(self,string):
+        limitCondition = string.split("LIMIT")[1].strip()
+        wordlist = ["WHERE","LIMIT","OFFSET"] 
+        for word in wordlist:
+            limitCondition = limitCondition.split(word)[0].strip()
+        limitConditionSplit = limitCondition.split()
+        if(len(limitConditionSplit)) == 1:
+            try:
+                valeur = int(limitConditionSplit[0].strip())
+                self.limit = valeur
+                return
+            except (ValueError, TypeError):
+                print("Erreur : Veuillez précisez un entier valide pour LIMIT")
+                return
+        print("Erreur : mauvaise condition dans le LIMIT")
+        
+    def offsetCondition(self,string):
+        offsetCondition = string.split("OFFSET")[1].strip()
+        wordlist = ["WHERE","LIMIT"] 
+        for word in wordlist:
+            offsetCondition = offsetCondition.split(word)[0].strip()
+        offsetConditionSplit = offsetCondition.split()
+        if(len(offsetConditionSplit)) == 1:
+            try:
+                valeur = int(offsetConditionSplit[0].strip())
+                self.offset = valeur
+                return
+            except (ValueError, TypeError):
+                print("Erreur : Veuillez précisez un entier valide pour OFFSET")
+                return
+        print("Erreur : mauvaise condition dans le OFFSET")
 
     def describe(self,string):
         self.action = "DESCRIBE"
