@@ -1,5 +1,5 @@
 import re
-
+from node_condition import NodeCondition
 blacklistWord  = ["CREATE","TABLE","DROP","INSERT","INTO",
                   "VALUES","SELECT","FROM","WHERE","ORDER",
                   "BY","ASC","DESC","LIMIT","OFFSET","UPDATE",
@@ -257,8 +257,12 @@ class Parser:
         whereCondition = whereCondition.replace(" or "," OR ")
         whereCondition = whereCondition.replace(" not "," NOT ")
 
-
+        # On sépare chaque mot 
         whereDecoupe = whereCondition.split()
+
+
+        #On créer un tableau avec les condition selon leur logique 
+        #priorité des parenthèse
 
         condition = []
         for _ in whereDecoupe:
@@ -283,15 +287,90 @@ class Parser:
                 condition[position] = condition[position] + " " + elem
             
 
+        #On supprime les valeurs null
         conditionSecondpart = []
         for elem in condition:
             if elem != '':
                 conditionSecondpart.append(elem.strip())
 
+        #Création de l'arbre de décision 
+        #Règle:
+        #Si j'ai une parenthèse ouvrante : Je créer deux fils, et si gauche libre alors je met la parenthèse au gauche, sinon a celui de droite
+        #Si j'ai parenthèse qui ferme je remonte au parent et je la ferme
+        #Si mon expression contient un mot spécial (and,or,not) je la coupe en deux et j'ajoute la condition au noeud actuellle et les condition au enfant a gauche et droite
         
+        rootNode = NodeCondition(None,None,None,None)
+        actualNode = rootNode
+        specialWords = ["AND","OR","NOT"]
+        
+        for elem in conditionSecondpart:
+            modify = False
+            if elem[0] == "(":
+                if actualNode.child_left_free():
+                    actualNode.new_child_left()
+                    actualNode = actualNode.left
+                    actualNode.openCondition = True
+                elif actualNode.child_right_free():
+                    actualNode.new_child_right()
+                    actualNode = actualNode.right
+                    actualNode.openCondition = True
+                modify = True
+            
+            specialWordDetected = False    
+            for specialWord in specialWords:
+                if specialWord in elem and len(elem) > len(specialWord): #si "condition1 AND|OR|NOT condition2"
+                    specialWordDetected = True
+                    restart = True
+                    while restart:
+                        if actualNode.child_left_free():
+                            actualNode.new_child_left()
+                            actualNode.operateur = specialWord
+                            actualNode.left.condition = elem.split(specialWord)[0]
+                            restart=False
+                        if actualNode.child_right_free():
+                            actualNode.new_child_right()
+                            actualNode.operateur = specialWord
+                            actualNode.right.condition = elem.split(specialWord)[1]
+                            restart = False
+                        if (not actualNode.child_left_free() and not actualNode.child_right_free()) and restart:
+                            actualNode = actualNode.parent
+                        
+                    modify = True
+                if specialWord in elem and len(elem) == len(specialWord): #si "AND|OR|NOT"
+                    #on remonte  et on ecrit la condition 
+                    specialWordDetected = True
+                    actualNode = actualNode.parent
+                    actualNode.operateur = specialWord
+                    modify = True
+            #Si on a (age > 25) 
+            if modify and specialWordDetected == False and len(elem) > 2: #si != '()'
+                actualNode.condition = elem
+
+
+            if modify == False and elem != ")":
+                #on ajoute elem au noeud actuelle 
+                actualNode.condition = elem
+            if elem[-1] == ")":
+                if actualNode.openCondition == True:
+                    actualNode.openCondition = False
+                elif actualNode.parent.right == actualNode and actualNode.parent.operateur != '' and actualNode.parent.openCondition == True:
+                    actualNode = actualNode.parent
+                    actualNode.openCondition = False
+                else:
+                    print("Une erreur")
+                    return 
+
+        rootNode.draw()
+            
+
+
+
+        """
         print(f"WHERE CONDITION : {whereCondition}")
         print(f"Decoupé : {whereDecoupe}")
         print(f"Condition : {conditionSecondpart}")
+        """
+
 
     def describe(self,string):
         self.action = "DESCRIBE"
