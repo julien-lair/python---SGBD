@@ -1,6 +1,6 @@
 from auth_manager import AuthManager
 from database import Database
-
+DEV = True
 class Server:
 
     def __init__(self, host,port,database : Database):
@@ -22,6 +22,21 @@ class Server:
             print("echec de connection")
         
         print("Bienvenue sur le serveur :)")
+
+
+
+        if DEV:
+            commande = [
+                "SELECT age FROM users WHERE (age > 25 and age <= 30) or disabled=false; ",
+                "SELECT age FROM users WHERE ((age > 25) and (age <= 30)) or disabled=false; ",
+                "SELECT age FROM users WHERE age < 30; ",
+                'SELECT age FROM users WHERE id="h6avqpgxow6hggx0";',
+                                'SELECT * FROM users WHERE (((age >= 25) AND (age < 40)) OR ((francais = false) AND (age > 50))) AND (name != "julien");'                ]
+            for c in commande:
+                self.database.execute(c.strip())
+                print("-------------")
+
+
         while True:
             request = input("\n> ").strip()
             self.database.execute(request)

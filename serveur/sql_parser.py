@@ -227,31 +227,71 @@ class Parser:
         tableName = string.split("FROM")[1].strip().split()[0].strip()
         if self.verify_table_name(tableName.strip()):
             self.table = tableName.strip()
+        
+        self.whereCondition(string)
 
-        try:
-            if string.split("FROM")[1].strip().split()[1].strip() != "":
-                if string.split("FROM")[1].strip().split()[1].strip() == "WHERE":
-                    print("WHERE ..")
-                elif string.split("FROM")[1].strip().split()[1].strip() == "ORDER" :
-                    try:
-                        if string.split("FROM")[1].strip().split()[2].strip() == "BY":
-                            print("ORDER BY ..")
-                        else:
-                            print("Erreur : Expréssion invalide")
-                            return
-                    except IndexError:
-                        print("Erreur : Expréssion invalide")
-                        return
-                elif string.split("FROM")[1].strip().split()[1].strip() == "OFFSET":
-                    print("OFFSET ..")
-                else:
-                    print(f'Erreur : expréssion invalide ({string.split("FROM")[1].strip().split()[1].strip()})')
-        except IndexError:
-            #normal pas de suite après SELECT col FROM table
-            self.expressionValide = True
-            print("pas de suite")
-            return 
+       
 
+    def whereCondition(self,string):
+        # WHERE (age > 25 and age <= 30) or disabled=false
+        # WHERE age < 30
+        # WHERE id = "h6avqpgxow6hggx0"
+        whereCondition = string.split("WHERE")[1].strip()
+        
+        #On enleve tous ce qui pourrait être après le WHERE : 
+        wordlist = ["ORDER BY","LIMIT"] 
+        for word in wordlist:
+            whereCondition = whereCondition.split(word)[0].strip()
+
+        # Pré-traitement 
+
+        whereCondition = whereCondition.replace("("," ( ")
+        whereCondition = whereCondition.replace(")"," ) ")
+        whereCondition = whereCondition.replace("<="," <= ")
+        whereCondition = whereCondition.replace(">="," >= ")
+        whereCondition = re.sub(r'<(?![=])', ' < ', whereCondition)
+        whereCondition = re.sub(r'>(?![=])', ' > ', whereCondition)
+        whereCondition = re.sub(r'(?<![><!])=', ' = ', whereCondition)
+        whereCondition = whereCondition.replace("!="," != ")
+        whereCondition = whereCondition.replace(" and "," AND ")
+        whereCondition = whereCondition.replace(" or "," OR ")
+        whereCondition = whereCondition.replace(" not "," NOT ")
+
+
+        whereDecoupe = whereCondition.split()
+
+        condition = []
+        for _ in whereDecoupe:
+            condition.append("")
+        whereFinish = False
+        compteur = 0
+
+        parentheseOuverte = 0
+        
+        position = 0
+        for elem in whereDecoupe:
+            if elem == "(":
+                if condition[position] != "":
+                    position += 1
+                parentheseOuverte += 1
+                condition[position] = condition[position] + " " + elem
+            elif elem == ")" and parentheseOuverte >= 1:
+                parentheseOuverte -= 1
+                condition[position] = condition[position] + " " + elem
+                position += 1
+            else:
+                condition[position] = condition[position] + " " + elem
+            
+
+        conditionSecondpart = []
+        for elem in condition:
+            if elem != '':
+                conditionSecondpart.append(elem.strip())
+
+        
+        print(f"WHERE CONDITION : {whereCondition}")
+        print(f"Decoupé : {whereDecoupe}")
+        print(f"Condition : {conditionSecondpart}")
 
     def describe(self,string):
         self.action = "DESCRIBE"
