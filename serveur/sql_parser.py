@@ -232,6 +232,13 @@ class Parser:
         if self.verify_table_name(tableName.strip()):
             self.table = tableName.strip()
         
+        #Si un mot est présent après FROM table, ça doit être : WHERE,ORDER BY, LIMIT
+        if len(string.split("FROM")[1].strip().split()) > 0:
+            if string.split("FROM")[1].strip().split()[1] not in "WHERE ORDER BY LIMIT":
+                #On a des mot inconnues à la fin de l'expression, exemple :  SELECT * FROM users where ..; (where en minuscule)
+                print("Erreur : expréssion invalide")
+                return
+
         """
         Règle : (tous les champs optionel)
         WHERE après le FROM
@@ -246,6 +253,13 @@ class Parser:
                 print("Erruer : La condition WHERE doit se trouvé après la table sélectionner dans le FROM")
                 return
             
+            #Si un mot est présent après expréssion de WHERE, ça doit être : WHERE,ORDER BY, LIMIT
+            if len(string.split("FROM")[1].strip().split()) > 0:
+                if string.split("FROM")[1].strip().split()[1] not in "WHERE ORDER BY LIMIT":
+                    #On a des mot inconnues à la fin de l'expression, exemple :  SELECT * FROM users where ..; (where en minuscule)
+                    print("Erreur : expréssion invalide")
+                    return
+                
         if "ORDER BY" in string:
             #vérifie si après WHERE (si WHERE existe)
             if "WHERE" in string:
@@ -289,6 +303,10 @@ class Parser:
             print("Erreur: OFFSET doit être après le LIMIT")
             return         
         
+        if self.where.verify_condition() == False:
+            print(f"Erreur: condition invalide passer dans le paramètre WHERE")
+            return
+        self.expressionValide = True
 
     def whereCondition(self,string):
         # WHERE (age > 25 and age <= 30) or disabled=false
@@ -420,6 +438,7 @@ class Parser:
                     return 
 
         rootNode.draw()
+        
         self.where = rootNode   
 
 
