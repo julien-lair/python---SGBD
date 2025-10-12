@@ -7,6 +7,7 @@ class NodeCondition:
         self.condition = ""
         self.id = None 
         self.parent : NodeCondition = parent
+        self.resultCondition = None # servira lors du test des conditions : True False
         if gauche:
             self.id = parentId + 1
         if droite:
@@ -41,15 +42,45 @@ class NodeCondition:
         #où limit serait une erreur 
         #ou encore ex: WHERE a=b b=c (sans opérateur (AND OR NOT))
         #on vérifie pour chaque condition que il y a 3 élement (sans les parenthèse) ex: a <= b   ou   ( a <= b )
+
+        if self.right:
+            return self.right.verify_condition()
+        if self.left:
+            return self.left.verify_condition() 
+
         tmp = self.condition
+        
         if len(self.condition) >= 2:
             if self.condition[0] == "(" and self.condition[-1] == ")":
                 tmp = self.condition[1:-1]
-        if len(tmp.strip().split()) > 3:
+
+        #on fait l'équivalent de la fonction split mais pour ajouter le fait que : "str avec des espace" soit considérer comme 1 champs
+
+        parts = []
+        quoteOppen = False
+        strToAdd = ""
+        typeQuote = ""
+        for i in tmp.strip():
+            if i in "'" or i in '"' and quoteOppen == False: #début chaine de carcateres entre "" 
+                quoteOppen = True 
+                strToAdd = i
+                typeQuote = i
+            elif i in typeQuote and quoteOppen:  # find e la chaine de caracteres
+                quoteOppen = False
+                strToAdd += i
+            elif i == " " and quoteOppen == False:
+                parts.append(strToAdd)
+                strToAdd = ""
+            else:
+                strToAdd += i
+
+        if strToAdd != "":
+            parts.append(strToAdd)
+
+        if len(parts) > 3:
             return False
-        if self.right:
-            self.right.verify_condition()
-        if self.left:
-            self.left.verify_condition() 
-        return True
+        else: 
+            return True
+        
+        
             

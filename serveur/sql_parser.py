@@ -233,7 +233,7 @@ class Parser:
             self.table = tableName.strip()
         
         #Si un mot est présent après FROM table, ça doit être : WHERE,ORDER BY, LIMIT
-        if len(string.split("FROM")[1].strip().split()) > 0:
+        if len(string.split("FROM")[1].strip().split()) > 1:
             if string.split("FROM")[1].strip().split()[1] not in "WHERE ORDER BY LIMIT":
                 #On a des mot inconnues à la fin de l'expression, exemple :  SELECT * FROM users where ..; (where en minuscule)
                 print("Erreur : expréssion invalide")
@@ -303,9 +303,10 @@ class Parser:
             print("Erreur: OFFSET doit être après le LIMIT")
             return         
         
-        if self.where.verify_condition() == False:
-            print(f"Erreur: condition invalide passer dans le paramètre WHERE")
-            return
+        if self.where != None:
+            if self.where.verify_condition() == False:
+                print(f"Erreur: condition invalide passer dans le paramètre WHERE")
+                return
         self.expressionValide = True
 
     def whereCondition(self,string):
@@ -437,7 +438,7 @@ class Parser:
                     print("Une erreur")
                     return 
 
-        rootNode.draw()
+        #rootNode.draw()
         
         self.where = rootNode   
 

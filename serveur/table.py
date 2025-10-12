@@ -1,6 +1,8 @@
 import struct
 from sql_parser import Parser
 import copy 
+from node_condition import NodeCondition
+
 class Table:
     def __init__(self,path):
         self.path = path
@@ -102,15 +104,24 @@ class Table:
             newLines.append(newLine)
             self.lines.append(newLine) #on ajoute à notre mémoire
 
+
+
+      
+
         self.write_line(newLines)
 
     def select(self,parser : Parser):
         #PARTIE 1 : SELECT [*|col] FROM table
 
+        whereCondition = parser.where != None
         result = []
         for line in self.lines: 
             if len(parser.columns_name) == 1 and parser.columns_name[0] == "*": # cas où SELECT *
-                result.append(line)
+                if whereCondition:
+                    if self.select_where(line,parser.where):
+                        result.append(line)
+                else:
+                    result.append(line)
             else:
                 lineSelect = []
                 for colChoice in parser.columns_name:
@@ -119,7 +130,11 @@ class Table:
                             lineSelect.append(col)
                             break
                 if len(lineSelect)> 0:
-                    result.append(lineSelect)
+                    if whereCondition:
+                        if self.select_where(lineSelect,parser.where):
+                            result.append(lineSelect)
+                    else:
+                        result.append(lineSelect)
         
 
 
@@ -374,4 +389,128 @@ class Table:
                     return False
         return True
     
+    def select_where(self, line, node: NodeCondition)->bool:
+        """
+        Si la condition est respecter on return True
+        """
+        """
+        Il faut parcourir l'arbre binaire (node) en parcour POSTFIXE
+        appliqué les condition et inscrire le reusltat node.resultCondition avec True ou False
+        """
 
+        """
+        PSEUDO-CODE POSTFIXE:
+        ParcoursPostfixe ( Arbre binaire T de racine r )
+            ParcoursPostfixe ( Arbre de racine fils_gauche [ r ] )
+            ParcoursPostfixe ( Arbre de racine f i l s _ d r o i t [ r ] )
+            A f f i c h e r  c l e f  [ r ]
+        """
+        if self.parcour_postfixe(node, line):
+            return node.resultCondition
+        #Ici check si node resultCondition == true ou false
+        print("")
+        return True
+    def parcour_postfixe(self, node : NodeCondition, line) -> bool:
+        if node.left != None:
+            self.parcour_postfixe(node.left, line)
+        if node.right != None:
+            self.parcour_postfixe(node.right, line)
+
+        
+        if node.left == None and node.right == None:        #Si feuille de l'arbre
+            #print(f"Checker la condition {node.condition}")
+            #On supprime les parenthèse de la condition si il en a:
+            condition = node.condition
+            condition.replace("(","")
+            condition.replace(")","")
+            condition = condition.strip()
+
+            #on split sois-même car si j'ai une chaine de ractere avec des espaces erreur : "ceci est un exemple" serait split en plusieurs morceaux
+
+            parts = []
+            quoteOppen = False
+            strToAdd = ""
+            typeQuote = ""
+            for i in condition:
+                if i in "'" or i in '"' and quoteOppen == False: #début chaine de carcateres entre "" 
+                    quoteOppen = True 
+                    typeQuote = i
+                elif i in typeQuote and quoteOppen:  # find de la chaine de caracteres
+                    quoteOppen = False
+                elif i == " " and quoteOppen == False:
+                    parts.append(strToAdd)
+                    strToAdd = ""
+                else:
+                    strToAdd += i
+
+            if strToAdd != "":
+                parts.append(strToAdd)
+
+            #print(f"Comparé : {parts[0]}  {parts[1]}   {parts[2]}")
+
+            #véirfié si parts[0] est une colonnes existantes et que parts[2] est bien du bon type
+            coloneOK = False
+            typeOK = False
+            for col in self.columns:
+                if parts[0] == col["colonne"]:
+                    coloneOK = True
+                    if col["type"] == "SERIAL":
+                        typeOK = self.verify_type_is_correct(parts[2], "INT")
+                    else:
+                        typeOK = self.verify_type_is_correct(parts[2], col["type"])
+                    
+                        
+            
+            if coloneOK == False:
+                print(f"Erreur: la colonne {parts[0]} n'est pas dans la table")
+            if typeOK == False:
+                print(f"Erreur: dans le WHERE, le type de la colone {parts[0]} n'est pas le bon.")
+
+
+            for col in line:
+                value = col["value"]
+                name = col["colonne"]
+                typeCol = col["type"]
+                if name == parts[0]:
+                    if parts[1] == "<":
+                        node.resultCondition = (value < self.string_to_type(parts[2],typeCol))
+                    elif parts[1] == ">":
+                        node.resultCondition = (value > self.string_to_type(parts[2],typeCol))
+                    elif parts[1] == "<=":
+                        node.resultCondition = (value <= self.string_to_type(parts[2],typeCol))
+                    elif parts[1] == ">=":
+                        node.resultCondition = (value >= self.string_to_type(parts[2],typeCol))
+                    elif parts[1] == "=":
+                            node.resultCondition = value == self.string_to_type(parts[2],typeCol)
+                    elif parts[1] == "!=":
+                        node.resultCondition = value != self.string_to_type(parts[2],typeCol)
+                    else:
+                        print(f"Erreur: L'opérateur {parts[1]} n'est pas reconnue")
+            #On vérifie que le type de parts[2] est bien celu de la colonnes 
+
+
+
+
+
+        else:                                               #Noeud avec opérateur
+            #print(f"Checker l'opérateur {node.operateur} par rapport au résultat des deux enfants")
+            if node.operateur == "AND":
+                node.resultCondition = node.left.resultCondition and node.right.resultCondition
+            elif node.operateur == "OR":
+                node.resultCondition = node.left.resultCondition or node.right.resultCondition
+            else:
+                print(f"Erreur : L'opérateur {node.operateur} est inconnue")
+                return False
+            
+        return True
+    def string_to_type(self,value,type):
+        if type == "INT":
+            return int(value)
+        elif type == "FLOAT":
+            return float(value)
+        elif type == "TEXT":
+            return str(value[1:-1]) #On suppirme les "" du text
+        elif type == "BOOL":
+            return bool(value)
+        elif type == "SERIAL":
+            return int(value)
