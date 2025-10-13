@@ -36,7 +36,7 @@ class Database:
 
 
         header = self.create_header(name,columns,type)
-       
+
         #On ajoute dans un nouveau .db
         file = open(self.databaseDir + name + self.fileExtension, "wb")
         file.write(header)
@@ -62,10 +62,14 @@ class Database:
 
     def load_table(self):
         #On récupère toutes les tables et on les stockes dans un array 
-        for fileTable in os.scandir(self.databaseDir):
-            if fileTable.is_file() and fileTable.name.endswith(self.fileExtension):
-                table = Table(self.databaseDir + fileTable.name)
-                self.tables.append(table)
+        try:
+            for fileTable in os.scandir(self.databaseDir):
+                if fileTable.is_file() and fileTable.name.endswith(self.fileExtension):
+                    table = Table(self.databaseDir + fileTable.name)
+                    self.tables.append(table)
+        except FileNotFoundError:
+            #il éxiste aucune table (lors du lancement du projet)
+            return
                 
     
     def execute(self,request):

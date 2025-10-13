@@ -11,4 +11,4 @@ wheels/
 
 #data
 serveur/data/*
-
+!server/data/.gitkeep

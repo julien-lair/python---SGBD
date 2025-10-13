@@ -118,8 +118,13 @@ class Table:
         for line in self.lines: 
             if len(parser.columns_name) == 1 and parser.columns_name[0] == "*": # cas où SELECT *
                 if whereCondition:
-                    if self.select_where(line,parser.where):
-                        result.append(line)
+                    try :
+                        if self.select_where(line,parser.where):
+                            result.append(line)
+                            
+                    except Exception as e:
+                        print(e)
+                        return
                 else:
                     result.append(line)
             else:
@@ -131,8 +136,12 @@ class Table:
                             break
                 if len(lineSelect)> 0:
                     if whereCondition:
-                        if self.select_where(lineSelect,parser.where):
-                            result.append(lineSelect)
+                        try :
+                            if self.select_where(line,parser.where):
+                                result.append(line)
+                        except Exception as e:
+                            print(e)
+                            return
                     else:
                         result.append(lineSelect)
         
@@ -405,11 +414,13 @@ class Table:
             ParcoursPostfixe ( Arbre de racine f i l s _ d r o i t [ r ] )
             A f f i c h e r  c l e f  [ r ]
         """
+        
         if self.parcour_postfixe(node, line):
+            
             return node.resultCondition
-        #Ici check si node resultCondition == true ou false
-        print("")
-        return True
+        
+        #node.draw()
+        return False
     def parcour_postfixe(self, node : NodeCondition, line) -> bool:
         if node.left != None:
             self.parcour_postfixe(node.left, line)
@@ -421,10 +432,9 @@ class Table:
             #print(f"Checker la condition {node.condition}")
             #On supprime les parenthèse de la condition si il en a:
             condition = node.condition
-            condition.replace("(","")
-            condition.replace(")","")
+            condition = condition.replace("(","")
+            condition = condition.replace(")","")
             condition = condition.strip()
-
             #on split sois-même car si j'ai une chaine de ractere avec des espaces erreur : "ceci est un exemple" serait split en plusieurs morceaux
 
             parts = []
@@ -435,8 +445,10 @@ class Table:
                 if i in "'" or i in '"' and quoteOppen == False: #début chaine de carcateres entre "" 
                     quoteOppen = True 
                     typeQuote = i
+                    strToAdd = i
                 elif i in typeQuote and quoteOppen:  # find de la chaine de caracteres
                     quoteOppen = False
+                    strToAdd += i
                 elif i == " " and quoteOppen == False:
                     parts.append(strToAdd)
                     strToAdd = ""
@@ -446,7 +458,6 @@ class Table:
             if strToAdd != "":
                 parts.append(strToAdd)
 
-            #print(f"Comparé : {parts[0]}  {parts[1]}   {parts[2]}")
 
             #véirfié si parts[0] est une colonnes existantes et que parts[2] est bien du bon type
             coloneOK = False
@@ -458,15 +469,18 @@ class Table:
                         typeOK = self.verify_type_is_correct(parts[2], "INT")
                     else:
                         typeOK = self.verify_type_is_correct(parts[2], col["type"])
-                    
+            
                         
             
             if coloneOK == False:
-                print(f"Erreur: la colonne {parts[0]} n'est pas dans la table")
+                if parts[0] not in "()":
+                    raise Exception(f"Erreur: la colonne {parts[0]} n'est pas dans la table") 
+                return False
             if typeOK == False:
-                print(f"Erreur: dans le WHERE, le type de la colone {parts[0]} n'est pas le bon.")
-
-
+                raise Exception(f"Erreur: dans le WHERE, le type de la colone {parts[0]} n'est pas le bon.")
+            
+                
+                
             for col in line:
                 value = col["value"]
                 name = col["colonne"]
@@ -484,10 +498,10 @@ class Table:
                             node.resultCondition = value == self.string_to_type(parts[2],typeCol)
                     elif parts[1] == "!=":
                         node.resultCondition = value != self.string_to_type(parts[2],typeCol)
+                        
                     else:
                         print(f"Erreur: L'opérateur {parts[1]} n'est pas reconnue")
             #On vérifie que le type de parts[2] est bien celu de la colonnes 
-
 
 
 
@@ -498,8 +512,17 @@ class Table:
                 node.resultCondition = node.left.resultCondition and node.right.resultCondition
             elif node.operateur == "OR":
                 node.resultCondition = node.left.resultCondition or node.right.resultCondition
+            elif node.operateur == "":
+                #pas d'opérateur préciser, on retourne le résultat de l'enfant 
+                if node.left != None and node.right == None:
+                    node.resultCondition = node.left.resultCondition #tester dans le left icizZ
+                if node.right != None and node.left == None:
+                    node.resultCondition = node.right.resultCondition
             else:
-                print(f"Erreur : L'opérateur {node.operateur} est inconnue")
+                # ici l'opérateur est inconnue, peut être le cas d'une aprenthèse dans un WHERE (condition or condition)
+                #On retourne la valeur du dessous si il y a 1 seul enfant
+                
+                
                 return False
             
         return True

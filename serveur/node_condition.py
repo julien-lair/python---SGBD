@@ -25,7 +25,7 @@ class NodeCondition:
         print(f"{espace}Noeud ({self.id}):")
         print(f"{espace}  opérateur: {self.operateur}")
         print(f"{espace}  condition: {self.condition}")
-        
+        print(f"{espace}  resultat: {self.resultCondition}")
         print()
         
         if self.left:
