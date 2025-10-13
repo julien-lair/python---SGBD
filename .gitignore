@@ -10,5 +10,5 @@ wheels/
 .venv
 
 #data
-serveur/data/*
+serveur/data/*.db
 !server/data/.gitkeep
