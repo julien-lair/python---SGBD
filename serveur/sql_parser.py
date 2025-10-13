@@ -266,19 +266,17 @@ class Parser:
                 if "ORDER BY" in string.split("WHERE")[1]:
                     #ORDER BY est bien après WHERE si il existe
                     self.orderByCondition(string)
-                    return
                 else:
                     print("Erreur: Le ORDER BY doit être après le WHERE")
                     return
             else:
                 self.orderByCondition(string)
-            
+        
         if "LIMIT" in string:
             if "WHERE" in string:
                 if "LIMIT" in string.split("WHERE")[1]:
                     #LIMIT après WHERE (si WHERE présent)
                     self.limitCondition(string)
-                    return
                 else:
                     print("Erreur: Le LIMIT doit être après le WHERE")
                     return 
@@ -287,21 +285,20 @@ class Parser:
                 if "LIMIT" in string.split("ORDER BY")[1]:
                     #LIMIT après ORDER BY (si ORDER BY présent)
                     self.limitCondition(string)
-                    return
                 else:
                     print("Erreur: Le LIMIT doit être après le ORDER BY")
                     return 
             self.limitCondition(string)
             
-
         if "OFFSET" in string:
             if "LIMIT" in string:
                 if "OFFSET" in string.split("LIMIT")[1]:
                     #OFFSET après LIMIT (LIMIT obligatoire pour OFFSET)
-                    self.limitCondition(string)
-                    return
-            print("Erreur: OFFSET doit être après le LIMIT")
-            return         
+                    self.offsetCondition(string)
+                else:
+                    print("Erreur: OFFSET doit être après le LIMIT")
+            else:
+                print("Erreur: OFFSET doit être spécifier avec LIMIT")         
         
         if self.where != None:
             if self.where.verify_condition() == False:
@@ -467,6 +464,7 @@ class Parser:
         
 
     def limitCondition(self,string):
+        
         limitCondition = string.split("LIMIT")[1].strip()
         wordlist = ["WHERE","LIMIT","OFFSET"] 
         for word in wordlist:

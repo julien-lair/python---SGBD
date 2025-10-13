@@ -158,7 +158,15 @@ class Table:
                 print("Erreur: Une erreur c'est produite lors du ORDER BY")
                 return
 
-        
+        #on regarde si on à une LIMIT et par la suite un OFFSET 
+        if parser.limit != None:
+            print(parser.offset)
+            #On vérifie directement si il y a un décalage avec OFFSET
+            if parser.offset != None:
+                result = result[parser.offset:parser.limit + parser.offset]
+            if len(result) > parser.limit and parser.offset == None:
+                result = result[:parser.limit]
+            
         #PARTIE N : affichage résultat 
         if len(result) > 0:
             tailleColonne = 12
