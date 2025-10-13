@@ -19,6 +19,7 @@ class Parser:
         self.orderBy = None
         self.limit = None
         self.offset = None
+        self.update = None
 
     def parse(self,string): 
 
@@ -40,6 +41,8 @@ class Parser:
             self.select(string[:-1])
         elif action == "DESCRIBE":
             self.describe(string[:-1])
+        elif action == "UPDATE":
+            self.updateCondition(string[:-1])
         else:
             print(f"{action} n'est pas reconnue")
             self.expressionValide = False
@@ -265,18 +268,21 @@ class Parser:
             if "WHERE" in string:
                 if "ORDER BY" in string.split("WHERE")[1]:
                     #ORDER BY est bien après WHERE si il existe
-                    self.orderByCondition(string)
+                    if self.orderByCondition(string) != True:
+                        return 
                 else:
                     print("Erreur: Le ORDER BY doit être après le WHERE")
                     return
             else:
-                self.orderByCondition(string)
+                if self.orderByCondition(string) != True:
+                    return
         
         if "LIMIT" in string:
             if "WHERE" in string:
                 if "LIMIT" in string.split("WHERE")[1]:
                     #LIMIT après WHERE (si WHERE présent)
-                    self.limitCondition(string)
+                    if self.limitCondition(string) != True:
+                        return
                 else:
                     print("Erreur: Le LIMIT doit être après le WHERE")
                     return 
@@ -284,17 +290,20 @@ class Parser:
             if "ORDER BY" in string:
                 if "LIMIT" in string.split("ORDER BY")[1]:
                     #LIMIT après ORDER BY (si ORDER BY présent)
-                    self.limitCondition(string)
+                    if self.limitCondition(string) != True:
+                        return
                 else:
                     print("Erreur: Le LIMIT doit être après le ORDER BY")
                     return 
-            self.limitCondition(string)
+            if self.limitCondition(string) != True:
+                return
             
         if "OFFSET" in string:
             if "LIMIT" in string:
                 if "OFFSET" in string.split("LIMIT")[1]:
                     #OFFSET après LIMIT (LIMIT obligatoire pour OFFSET)
-                    self.offsetCondition(string)
+                    if self.offsetCondition(string) != True:
+                        return
                 else:
                     print("Erreur: OFFSET doit être après le LIMIT")
             else:
@@ -447,7 +456,7 @@ class Parser:
         print(f"Condition : {conditionSecondpart}")
         """
 
-    def orderByCondition(self,string):
+    def orderByCondition(self,string) -> bool:
         orderByCondition = string.split("ORDER BY")[1].strip()
         
         #On enleve tous ce qui pourrait être après le WHERE : 
@@ -459,11 +468,11 @@ class Parser:
             if self.verify_colomn_name(orderByConditionSplit[0].strip()):
                 if orderByConditionSplit[1].strip() == "ASC" or orderByConditionSplit[1].strip() == "DESC":
                     self.orderBy = {"colonne":orderByConditionSplit[0].strip(),"order":orderByConditionSplit[1].strip()}
-                    return
+                    return True
         print("Erreur : mauvaise condition dans le ORDER BY")
-        
+        return False
 
-    def limitCondition(self,string):
+    def limitCondition(self,string)->bool:
         
         limitCondition = string.split("LIMIT")[1].strip()
         wordlist = ["WHERE","LIMIT","OFFSET"] 
@@ -474,13 +483,14 @@ class Parser:
             try:
                 valeur = int(limitConditionSplit[0].strip())
                 self.limit = valeur
-                return
+                return True
             except (ValueError, TypeError):
                 print("Erreur : Veuillez précisez un entier valide pour LIMIT")
-                return
+                return True
         print("Erreur : mauvaise condition dans le LIMIT")
+        return False
         
-    def offsetCondition(self,string):
+    def offsetCondition(self,string)->bool:
         offsetCondition = string.split("OFFSET")[1].strip()
         wordlist = ["WHERE","LIMIT"] 
         for word in wordlist:
@@ -490,12 +500,13 @@ class Parser:
             try:
                 valeur = int(offsetConditionSplit[0].strip())
                 self.offset = valeur
-                return
+                return True
             except (ValueError, TypeError):
                 print("Erreur : Veuillez précisez un entier valide pour OFFSET")
-                return
+                return False
         print("Erreur : mauvaise condition dans le OFFSET")
-
+        return False
+    
     def describe(self,string):
         self.action = "DESCRIBE"
         if len(string.strip().split()) == 2: #Vérifie qu'il y a seulement 2 arguments
@@ -506,6 +517,52 @@ class Parser:
         else:
             print("Erreur : Argument indésirable")
             return
+
+    def updateCondition(self,string):
+        self.action = "UPDATE"
+        if "WHERE" in string:
+            firstPart = string.strip().split("WHERE")[0].split()
+        else:
+            firstPart = string.strip().split()
+        if firstPart[0] == "UPDATE":
+            table = firstPart[1]
+            if self.verify_table_name(table.strip()):
+                self.table = table.strip()
+                if firstPart[2] == "SET":
+                    updatePart = string.split("SET")[1].strip().split("WHERE")[0].split(",")
+                    updateDict = []
+                    for update in updatePart:
+                        col = update.strip().split("=")[0].strip()
+                        value = update.strip().split("=")[1].strip()
+                        if col != "" and value != "":
+                            if self.verify_colomn_name(col):
+                                updateDict.append({"colonne":col,"value":value})
+                            else:
+                                print("Erreur: veuillez spécifier des paramètre valide dans le SET de UPDATE")
+                                return
+                        else:
+                            print("Erreur: veuillez spécifier des paramètre valide dans le SET de UPDATE")
+                            return
+                    #On à fini avec les update
+                    self.update = updateDict
+                    #vérifie si condition WHERE
+                    if "WHERE" in string:
+                        self.whereCondition(string)
+                    if self.where != None:
+                        if self.where.verify_condition() == False:
+                            print(f"Erreur: condition invalide passer dans le paramètre WHERE")
+                            return
+                    
+                    self.expressionValide = True
+                else:
+                    print("Erreur: il faut spécifier SET après le nom de la table")
+                    return
+            else:
+                print("Erreur: Veuillez spécifier un nom de table correcte")
+                return
+        else:
+            return
+
 
     def verify_table_name(self,name)->bool:
         if not re.match(r"^[A-Za-z][A-Za-z0-9_]*$", name):

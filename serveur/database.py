@@ -86,6 +86,8 @@ class Database:
                 self.describe_table(parser)
             elif parser.action == "SELECT":
                 self.select_table(parser)
+            elif parser.action == "UPDATE":
+                self.update_table(parser)
             else:
                 print("Une erreur")
     
@@ -159,5 +161,13 @@ class Database:
             for table in self.tables:
                 if table.name == parser.table:
                     table.select(parser)
+                    return 
+            print("Erreur : la table est inconnue")
+
+    def update_table(self,parser : Parser):
+        if parser.action == "UPDATE":
+            for table in self.tables:
+                if table.name == parser.table:
+                    table.update(parser)
                     return 
             print("Erreur : la table est inconnue")

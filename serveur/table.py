@@ -3,6 +3,7 @@ from sql_parser import Parser
 import copy 
 from node_condition import NodeCondition
 
+TAILLE_MAX_TEXT = 1000 #équivaut à 1000 caractere ASCII
 class Table:
     def __init__(self,path):
         self.path = path
@@ -82,7 +83,10 @@ class Table:
                     if self.verify_type_is_correct(valeur, typeCol):
                         for elem in newLine:
                             if elem["colonne"] == colToAdd:
-                                elem["value"] = valeur
+                                if elem["type"] == "TEXT":
+                                    elem["value"] = valeur[1:-1]
+                                else:
+                                    elem["value"] = valeur
                                 break
 
             else:
@@ -192,8 +196,33 @@ class Table:
         for col in row:
             if col["colonne"] == colName:
                 return col["value"]
-    def update(self,conditions,values):
-        print("")
+    def update(self,parser : Parser):
+        
+        for row in self.lines:
+            for colData in row:
+                for colUpdate in parser.update:
+                    if colData["colonne"] == colUpdate["colonne"]:
+                        if self.verify_type_is_correct(colUpdate["value"],colData["type"]):
+                            #On modifie cette colonne
+                            updateValue = colUpdate["value"]
+                            if colData["type"] == "TEXT":
+                                updateValue = colUpdate["value"][1:-1]
+
+                            if parser.where != None:
+                                if self.select_where(row,parser.where):
+                                    #la condition est respecter on modifie la colonne
+                                    colData["value"] = updateValue
+                            else:
+                                #On modifie pour toutes les colonnes
+                                colData["value"] = updateValue
+                            
+                        else:
+                            print(f'Erreur: Le type de {colUpdate["value"]} n\'est pas le bon.')
+                            return
+            self.write_updateLine(row)
+
+        #On met à jour le fichier 
+        
     
     def delete(self, condition):
         print("")
@@ -212,9 +241,6 @@ class Table:
         else:
             print("\nAucune colonne de type SERIAL.")
 
-    def read_content(self):
-        print("")
-
     def write_line(self,lines):
         self.update_serial()
         for line in lines:
@@ -223,7 +249,55 @@ class Table:
             file = open(self.path, "ab")
             file.write(rowBytes)
             file.close()
+    def write_updateLine(self,line):
+        #On réucpère d'abord l'id de la colonne (nous permettera de se déplacer plus rapidement dans le fichier)
+        id = None 
+        for col in line:
+            if col["colonne"] == "_id":
+                id = col["value"]
+                break
 
+        rowBytes = self.encode_row(line)
+        file = open(self.path, "r+b")
+        #Il va falloir passer le header et avancer de id ligne
+        #on passe le header 
+        sizeName = struct.unpack("I", file.read(4))[0]
+        file.seek(sizeName,1)
+
+        totalCol = struct.unpack("I", file.read(4))[0]
+
+        for _ in range(totalCol):
+            sizeNameCol = struct.unpack("I",file.read(4))[0]
+            file.seek(sizeNameCol,1)
+            file.seek(4,1)
+        
+        totalSerial = struct.unpack("I", file.read(4))[0]
+
+        for _ in range(totalSerial):
+            sizeColName = struct.unpack("I", file.read(4))[0]
+            file.seek(sizeColName,1)
+            file.seek(4,1)
+
+        #fin du header
+
+        #On passe id fois les parametre pour modifier ce qui nous intérèsse 
+        for _ in range(int(id)):
+            for col in self.columns:
+                if col["type"] == "INT":
+                    file.seek(4,1)
+                elif col["type"] == "FLOAT":
+                    file.seek(4,1)
+                elif col["type"] == "TEXT":
+                    file.seek(TAILLE_MAX_TEXT,1)
+                elif col["type"] == "BOOL":
+                    file.seek(1,1)
+                elif col["type"] == "SERIAL":
+                    file.seek(4,1)
+        
+        #Le curseur est sur notre ligne, on la récrit
+        
+        file.write(rowBytes)
+        file.close()
 
     def update_serial(self):
         """
@@ -258,6 +332,7 @@ class Table:
             print(e)
 
     def encode_row(self,line):
+        #Encodage : on écrit en bytes diretement les valeurs, pour le text on ecrit sur TAILLE_MAX_TEXT
         #Exemple de line reçu : [{'colonne': '_id', 'type': 'SERIAL', 'value': '0'}, {'colonne': 'age', 'type': 'INT', 'value': '6'}]
         rowBytes = b""
         for col in line:
@@ -267,8 +342,7 @@ class Table:
                 rowBytes += struct.pack("f", float(col["value"]))
             elif col["type"] == "TEXT":
                 textBytes = col["value"].encode("utf-8")
-                rowBytes += struct.pack("I", int(len(textBytes)))
-                rowBytes += textBytes
+                rowBytes += textBytes + b' ' * (TAILLE_MAX_TEXT - len(textBytes)) #On complète pour obtenir TAILLE_MAX_TEXT
             elif col["type"] == "BOOL":
                 rowBytes += struct.pack("?", bool(col["value"]))
             elif col["type"] == "SERIAL":
@@ -320,8 +394,7 @@ class Table:
                     elif typeCol == "FLOAT":
                         col["value"] = struct.unpack("f",file.read(4))[0]
                     elif typeCol == "TEXT":
-                        sizeText = struct.unpack("I",file.read(4))[0]
-                        col["value"] = file.read(sizeText).decode("utf-8")
+                        col["value"] = file.read(TAILLE_MAX_TEXT).decode("utf-8").strip()
                     elif typeCol == "BOOL":
                         col["value"] = struct.unpack("?",file.read(1))[0]
                     elif typeCol == "SERIAL":
@@ -401,7 +474,11 @@ class Table:
                 return False
             
         elif value_type == "TEXT":
-            return isinstance(value, str) and value[0] == value[-1] and value[0] in ("'",'"')
+            conditionA = isinstance(value, str) and value[0] == value[-1] and value[0] in ("'",'"')
+            conditionB = len(value.encode("utf-8")) <= TAILLE_MAX_TEXT
+            if conditionB == False:
+                print("Le champ de type TEXT est trop long ", end="")
+            return conditionA and conditionB
         
         elif value_type == "BOOL":
             return value.lower() == "true" or value.lower() == "false"
@@ -436,6 +513,7 @@ class Table:
         """
         
         if self.parcour_postfixe(node, line):
+            #node.draw()
             return node.resultCondition
         return False
     
@@ -451,7 +529,10 @@ class Table:
             self.test_condition_where_leaf(node, line)
         else:                                               #Noeud avec opérateur
             #print(f"Checker l'opérateur {node.operateur} par rapport au résultat des deux enfants")
-            self.test_condition_where_parent_node(node)
+            return self.test_condition_where_parent_node(node)
+        #si on a seulement 1 noeud et qu'il est déjà évaluer 
+        if node.left == None and node.right == None and node.resultCondition != None:
+            return node.resultCondition
             
     
     def test_condition_where_leaf(self,node : NodeCondition, line):
@@ -504,28 +585,28 @@ class Table:
             raise Exception(f"Erreur: dans le WHERE, le type de la colone {parts[0]} n'est pas le bon.")
         
             
-            
+        
         for col in line:
             value = col["value"]
             name = col["colonne"]
             typeCol = col["type"]
             if name == parts[0]:
                 if parts[1] == "<":
-                    node.resultCondition = (value < self.string_to_type(parts[2],typeCol))
+                    node.resultCondition = (self.string_to_type(value,typeCol) < self.string_to_type(parts[2],typeCol))
                 elif parts[1] == ">":
-                    node.resultCondition = (value > self.string_to_type(parts[2],typeCol))
+                    node.resultCondition = (self.string_to_type(value,typeCol) > self.string_to_type(parts[2],typeCol))
                 elif parts[1] == "<=":
-                    node.resultCondition = (value <= self.string_to_type(parts[2],typeCol))
+                    node.resultCondition = (self.string_to_type(value,typeCol) <= self.string_to_type(parts[2],typeCol))
                 elif parts[1] == ">=":
-                    node.resultCondition = (value >= self.string_to_type(parts[2],typeCol))
+                    node.resultCondition = (self.string_to_type(value,typeCol) >= self.string_to_type(parts[2],typeCol))
                 elif parts[1] == "=":
-                        node.resultCondition = value == self.string_to_type(parts[2],typeCol)
+                        node.resultCondition = self.string_to_type(value,typeCol) == self.string_to_type(parts[2],typeCol)
                 elif parts[1] == "!=":
-                    node.resultCondition = value != self.string_to_type(parts[2],typeCol)
+                    node.resultCondition = self.string_to_type(value,typeCol) != self.string_to_type(parts[2],typeCol)
                     
                 else:
                     print(f"Erreur: L'opérateur {parts[1]} n'est pas reconnue")
-
+       
     def test_condition_where_parent_node(self,node : NodeCondition)->bool:
         if node.operateur == "AND":
             node.resultCondition = node.left.resultCondition and node.right.resultCondition
