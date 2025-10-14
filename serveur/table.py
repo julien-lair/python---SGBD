@@ -224,8 +224,22 @@ class Table:
         #On met à jour le fichier 
         
     
-    def delete(self, condition):
-        print("")
+    def delete(self, parser : Parser):
+        for line in self.lines:
+            if parser.where != None:
+                if self.select_where(line,parser.where):
+                    #la condition est respecter on supprime la ligne
+                    self.write_updateLine(line,delete=True)
+            else:
+                #On supprime la ligne
+                self.write_updateLine(line,delete=True)
+                
+                """
+                TODO
+                ici pour la supprésion : ajouter dans l'encodage un flag delete 
+                et dans la ligne du .db mettre le flag a jour, mettre tous les X caracteres suivant sur null " "b
+                """
+
     
     def describe(self):
         print(f"Nom de la table : {self.name}\n")
@@ -249,14 +263,14 @@ class Table:
             file = open(self.path, "ab")
             file.write(rowBytes)
             file.close()
-    def write_updateLine(self,line):
+    def write_updateLine(self,line,delete = False):
         #On réucpère d'abord l'id de la colonne (nous permettera de se déplacer plus rapidement dans le fichier)
         id = None 
         for col in line:
             if col["colonne"] == "_id":
                 id = col["value"]
                 break
-
+                   
         rowBytes = self.encode_row(line)
         file = open(self.path, "r+b")
         #Il va falloir passer le header et avancer de id ligne
@@ -295,8 +309,12 @@ class Table:
                     file.seek(4,1)
         
         #Le curseur est sur notre ligne, on la récrit
-        
-        file.write(rowBytes)
+        if delete == False:
+            file.write(rowBytes)
+        if delete == True:
+            #On écrit que des 0
+            nbr_zero = len(rowBytes)
+
         file.close()
 
     def update_serial(self):

@@ -43,6 +43,8 @@ class Parser:
             self.describe(string[:-1])
         elif action == "UPDATE":
             self.updateCondition(string[:-1])
+        elif action == "DELETE":
+            self.deleteCondition(string[:-1])
         else:
             print(f"{action} n'est pas reconnue")
             self.expressionValide = False
@@ -563,6 +565,34 @@ class Parser:
         else:
             return
 
+    def deleteCondition(self,string):
+        self.action = "DELETE"
+        if "WHERE" in string:
+            firstPart = string.strip().split("WHERE")[0].split()
+        else:
+            firstPart = string.strip().split()
+        if firstPart[0] == "DELETE":
+            if firstPart[1] == "FROM":
+                table = firstPart[2]
+                if self.verify_table_name(table.strip()):
+                    self.table = table.strip()
+                
+                    #vérifie si condition WHERE
+                    if "WHERE" in string:
+                        self.whereCondition(string)
+                    if self.where != None:
+                        if self.where.verify_condition() == False:
+                            print(f"Erreur: condition invalide passer dans le paramètre WHERE")
+                            return
+                    self.expressionValide = True
+                else:
+                    print("Erreur: Veuillez spécifier un nom de table correcte")   
+                    return
+            else:
+                print("Erreur: il faut spécifier FROM après DELETE")
+                return
+        else:
+            return
 
     def verify_table_name(self,name)->bool:
         if not re.match(r"^[A-Za-z][A-Za-z0-9_]*$", name):

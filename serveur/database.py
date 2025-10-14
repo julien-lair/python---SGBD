@@ -46,7 +46,7 @@ class Database:
         table = Table(self.databaseDir + name + self.fileExtension)
         self.tables.append(table)
 
-    def delete_table(self,name):
+    def drop_table(self,name):
         #DROP TABLE name 
         #Vérification si la table éxiste
         if(not(os.path.exists(self.databaseDir + name + self.fileExtension))):
@@ -79,7 +79,7 @@ class Database:
             if parser.action == "CREATE":
                 self.create_table(parser.table, parser.columns_name, parser.columns_type)
             elif parser.action == "DROP":
-                self.delete_table(parser.table)
+                self.drop_table(parser.table)
             elif parser.action == "INSERT":
                 self.insert_table(parser)
             elif parser.action == "DESCRIBE":
@@ -88,6 +88,8 @@ class Database:
                 self.select_table(parser)
             elif parser.action == "UPDATE":
                 self.update_table(parser)
+            elif parser.action == "DELETE":
+                self.delete_table(parser)
             else:
                 print("Une erreur")
     
@@ -169,5 +171,13 @@ class Database:
             for table in self.tables:
                 if table.name == parser.table:
                     table.update(parser)
+                    return 
+            print("Erreur : la table est inconnue")
+
+    def delete_table(self,parser : Parser):
+        if parser.action == "DELETE":
+            for table in self.tables:
+                if table.name == parser.table:
+                    table.delete(parser)
                     return 
             print("Erreur : la table est inconnue")
