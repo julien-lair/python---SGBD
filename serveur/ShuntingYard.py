@@ -80,8 +80,8 @@ class ShuntingYard:
         Si condition -> sur la pile
         Si opérateur -> applique sur la pile 
         """
-        pile = []
 
+        pile = []
         for elem in self.RPN:
             if elem == "AND":
                 value1 = pile.pop()
@@ -140,9 +140,12 @@ class ShuntingYard:
             else:
                 return str(value)
         elif type == "BOOL":
-            if value.upper() == "TRUE":
-                return True
-            elif value.upper() == "FALSE":
-                return False
+            try:
+                if value.upper() == "TRUE":
+                    return True
+                elif value.upper() == "FALSE":
+                    return False
+            except AttributeError:
+                return value
         elif type == "SERIAL":
             return int(value)

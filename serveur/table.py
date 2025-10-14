@@ -122,12 +122,12 @@ class Table:
         for line in self.lines: 
             if len(parser.columns_name) == 1 and parser.columns_name[0] == "*": # cas où SELECT *
                 if whereCondition:
-                    # try :
-                    if self.select_where(line,parser.where):
-                        result.append(line)
-                    # except Exception as e:
-                    #     print(e)
-                    #     return
+                    try :
+                        if self.select_where(line,parser.where):
+                            result.append(line)
+                    except Exception:
+                        print("Erreur : La condition WHERE n'est pas correcte")
+                        return
                 else:
                     result.append(line)
             else:
@@ -140,8 +140,12 @@ class Table:
                 if len(lineSelect)> 0:
                     if whereCondition:
                         try :
-                            if self.select_where(line,parser.where):
-                                result.append(line)
+                            try :
+                                if self.select_where(line,parser.where):
+                                    result.append(line)
+                            except Exception:
+                                print("Erreur : La condition WHERE n'est pas correcte")
+                                return
                         except Exception as e:
                             print(e)
                             return
@@ -209,9 +213,14 @@ class Table:
                                 updateValue = colUpdate["value"][1:-1]
 
                             if parser.where != None:
-                                if self.select_where(row,parser.where):
-                                    #la condition est respecter on modifie la colonne
-                                    colData["value"] = updateValue
+                                try :
+                                    if self.select_where(row,parser.where):
+                                        #la condition est respecter on modifie la colonne
+                                        colData["value"] = updateValue
+                                except Exception:
+                                    print("Erreur : La condition WHERE n'est pas correcte")
+                                    return
+                                
                             else:
                                 #On modifie pour toutes les colonnes
                                 colData["value"] = updateValue
@@ -226,10 +235,15 @@ class Table:
     def delete(self, parser : Parser):
         for line in self.lines:
             if parser.where != None:
-                if self.select_where(line,parser.where):
-                    #la condition est respecter on supprime la ligne
-                    self.lines.remove(line)
-                    self.write_updateLine(line,delete=True)
+                try :
+                     if self.select_where(line,parser.where):
+                        #la condition est respecter on supprime la ligne
+                        self.lines.remove(line)
+                        self.write_updateLine(line,delete=True)
+                except Exception:
+                    print("Erreur : La condition WHERE n'est pas correcte")
+                    return
+               
             else:
                 #On supprime la ligne
                 self.lines.remove(line)

@@ -457,10 +457,7 @@ class Parser:
                     #vérifie si condition WHERE
                     if "WHERE" in string:
                         self.whereCondition(string)
-                    if self.where != None:
-                        if self.where.verify_condition() == False:
-                            print(f"Erreur: condition invalide passer dans le paramètre WHERE")
-                            return
+                    
                     
                     self.expressionValide = True
                 else:
@@ -487,10 +484,7 @@ class Parser:
                     #vérifie si condition WHERE
                     if "WHERE" in string:
                         self.whereCondition(string)
-                    if self.where != None:
-                        if self.where.verify_condition() == False:
-                            print(f"Erreur: condition invalide passer dans le paramètre WHERE")
-                            return
+                   
                     self.expressionValide = True
                 else:
                     print("Erreur: Veuillez spécifier un nom de table correcte")   
