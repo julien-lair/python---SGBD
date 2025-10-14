@@ -1,7 +1,7 @@
 import struct
 from sql_parser import Parser
 import copy 
-from node_condition import NodeCondition
+from ShuntingYard import ShuntingYard
 
 TAILLE_MAX_TEXT = 1000 #équivaut à 1000 caractere ASCII
 class Table:
@@ -122,13 +122,12 @@ class Table:
         for line in self.lines: 
             if len(parser.columns_name) == 1 and parser.columns_name[0] == "*": # cas où SELECT *
                 if whereCondition:
-                    parser.where.draw()
-                    try :
-                        if self.select_where(line,parser.where):
-                            result.append(line)
-                    except Exception as e:
-                        print(e)
-                        return
+                    # try :
+                    if self.select_where(line,parser.where):
+                        result.append(line)
+                    # except Exception as e:
+                    #     print(e)
+                    #     return
                 else:
                     result.append(line)
             else:
@@ -544,143 +543,8 @@ class Table:
                     return False
         return True
     
-    def select_where(self, line, node: NodeCondition)->bool:
-        """
-        Si la condition est respecter on return True sinon False
-        
-        Il faut parcourir l'arbre binaire (node) en parcour POSTFIXE
-        appliqué les condition et inscrire le résultat node.resultCondition avec True ou False
-        
-        PSEUDO-CODE POSTFIXE:
-        ParcoursPostfixe ( Arbre binaire T de racine r )
-            ParcoursPostfixe ( Arbre de racine fils_gauche [ r ] )
-            ParcoursPostfixe ( Arbre de racine f i l s _ d r o i t [ r ] )
-            A f f i c h e r  c l e f  [ r ]
-        """
-        
-        if self.parcour_postfixe(node, line):
-            #node.draw()
-            return node.resultCondition
-        return False
+    def select_where(self, line, RPN: ShuntingYard)->bool:
+        #print(f"la ligne {line} est {RPN.condition_respected(line)}")
+        return RPN.condition_respected(line)
     
-    def parcour_postfixe(self, node : NodeCondition, line) -> bool:
-        if node.left != None:
-            self.parcour_postfixe(node.left, line)
-        if node.right != None:
-            self.parcour_postfixe(node.right, line)
-
-        if node.left == None and node.right == None:        
-            #Si feuille de l'arbre
-            #On check si les conditions sont respecter pour chaques feuilles
-            self.test_condition_where_leaf(node, line)
-        else:                                               #Noeud avec opérateur
-            #print(f"Checker l'opérateur {node.operateur} par rapport au résultat des deux enfants")
-            return self.test_condition_where_parent_node(node)
-        #si on a seulement 1 noeud et qu'il est déjà évaluer 
-        if node.left == None and node.right == None and node.resultCondition != None:
-            return node.resultCondition
-            
-    def test_condition_where_leaf(self,node : NodeCondition, line):
-        condition = node.condition
-        condition = condition.replace("(","")
-        condition = condition.replace(")","")
-        condition = condition.strip()
-        #on split sois-même car si j'ai une chaine de ractere avec des espaces erreur : "ceci est un exemple" serait split en plusieurs morceaux
-        parts = []
-        quoteOppen = False
-        strToAdd = ""
-        typeQuote = ""
-        for i in condition:
-            if (i in "'" or i in '"') and quoteOppen == False: #début chaine de carcateres entre "" 
-                quoteOppen = True 
-                typeQuote = i
-                strToAdd = i
-            elif i in typeQuote and quoteOppen:  # find de la chaine de caracteres
-                quoteOppen = False
-                strToAdd += i
-            elif i == " " and quoteOppen == False:
-                parts.append(strToAdd)
-                strToAdd = ""
-            else:
-                strToAdd += i
-
-        if strToAdd != "":
-            parts.append(strToAdd)
-
-
-        #véirfié si parts[0] est une colonnes existantes et que parts[2] est bien du bon type
-        coloneOK = False
-        typeOK = False
-        for col in self.columns:
-            if parts[0] == col["colonne"]:
-                coloneOK = True
-                if col["type"] == "SERIAL":
-                    typeOK = self.verify_type_is_correct(parts[2], "INT")
-                else:
-                    typeOK = self.verify_type_is_correct(parts[2], col["type"])
-        
-                    
-        
-        if coloneOK == False:
-            if parts[0] not in "()":
-                raise Exception(f"Erreur: la colonne {parts[0]} n'est pas dans la table") 
-            return False
-        if typeOK == False:
-            raise Exception(f"Erreur: dans le WHERE, le type de la colone {parts[0]} n'est pas le bon.")
-        
-            
-        
-        for col in line:
-            value = col["value"]
-            name = col["colonne"]
-            typeCol = col["type"]
-            if name == parts[0]:
-                if parts[1] == "<":
-                    node.resultCondition = (self.string_to_type(value,typeCol) < self.string_to_type(parts[2],typeCol))
-                elif parts[1] == ">":
-                    node.resultCondition = (self.string_to_type(value,typeCol) > self.string_to_type(parts[2],typeCol))
-                elif parts[1] == "<=":
-                    node.resultCondition = (self.string_to_type(value,typeCol) <= self.string_to_type(parts[2],typeCol))
-                elif parts[1] == ">=":
-                    node.resultCondition = (self.string_to_type(value,typeCol) >= self.string_to_type(parts[2],typeCol))
-                elif parts[1] == "=":
-                        node.resultCondition = self.string_to_type(value,typeCol) == self.string_to_type(parts[2],typeCol)
-                elif parts[1] == "!=":
-                    node.resultCondition = self.string_to_type(value,typeCol) != self.string_to_type(parts[2],typeCol)
-                    
-                else:
-                    print(f"Erreur: L'opérateur {parts[1]} n'est pas reconnue")
-       
-    def test_condition_where_parent_node(self,node : NodeCondition)->bool:
-        if node.operateur == "AND":
-            node.resultCondition = node.left.resultCondition and node.right.resultCondition
-        elif node.operateur == "OR":
-            node.resultCondition = node.left.resultCondition or node.right.resultCondition
-        elif node.operateur == "":
-            #pas d'opérateur préciser, on retourne le résultat de l'enfant
-            # Ce cas se produit lorsque la condition where comportent des parenthèse en trop, exemple: WHERE (_id = 2) 
-            if node.left != None and node.right == None:
-                node.resultCondition = node.left.resultCondition #tester dans le left icizZ
-            if node.right != None and node.left == None:
-                node.resultCondition = node.right.resultCondition
-        else: #Si l'opérateur est inconnue
-            return False
-        return True
-    
-    def string_to_type(self,value,type):
-        if type == "INT":
-            return int(value)
-        elif type == "FLOAT":
-            return float(value)
-        elif type == "TEXT":
-            if value[0] == value[-1] and value[0] in ["'",'"']:
-                return str(value[1:-1]) #On suppirme les "" du text
-            else:
-                return str(value)
-        elif type == "BOOL":
-            if value.upper() == "TRUE":
-                return True
-            elif value.upper() == "FALSE":
-                return False
-        elif type == "SERIAL":
-            return int(value)
+   

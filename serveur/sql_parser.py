@@ -1,5 +1,5 @@
 import re
-from node_condition import NodeCondition
+from ShuntingYard import ShuntingYard
 blacklistWord  = ["CREATE","TABLE","DROP","INSERT","INTO",
                   "VALUES","SELECT","FROM","WHERE","ORDER",
                   "BY","ASC","DESC","LIMIT","OFFSET","UPDATE",
@@ -15,7 +15,7 @@ class Parser:
         self.columns_name = []
         self.columns_type = []
         self.values = []
-        self.where : NodeCondition = None
+        self.where  = None
         self.orderBy = None
         self.limit = None
         self.offset = None
@@ -311,16 +311,9 @@ class Parser:
             else:
                 print("Erreur: OFFSET doit être spécifier avec LIMIT")         
         
-        if self.where != None:
-            if self.where.verify_condition() == False:
-                print(f"Erreur: condition invalide passer dans le paramètre WHERE")
-                return
         self.expressionValide = True
 
     def whereCondition(self,string):
-        # WHERE (age > 25 and age <= 30) or disabled=false
-        # WHERE age < 30
-        # WHERE id = "h6avqpgxow6hggx0"
 
         whereCondition = string.split("WHERE")[1].strip()
         
@@ -331,151 +324,47 @@ class Parser:
 
         # Pré-traitement 
 
-        whereCondition = whereCondition.replace("("," ( ")
-        whereCondition = whereCondition.replace(")"," ) ")
-        whereCondition = whereCondition.replace("<="," <= ")
-        whereCondition = whereCondition.replace(">="," >= ")
-        whereCondition = re.sub(r'<(?![=])', ' < ', whereCondition)
-        whereCondition = re.sub(r'>(?![=])', ' > ', whereCondition)
-        whereCondition = re.sub(r'(?<![><!])=', ' = ', whereCondition)
-        whereCondition = whereCondition.replace("!="," != ")
-        whereCondition = whereCondition.replace(" and "," AND ")
-        whereCondition = whereCondition.replace(" or "," OR ")
-        whereCondition = whereCondition.replace(" not "," NOT ")
+        whereCondition = whereCondition.replace("( ","(")
+        whereCondition = whereCondition.replace(" ( ","(")
+        whereCondition = whereCondition.replace(" (","(")
 
-        # On sépare chaque mot 
-        whereDecoupe = whereCondition.split()
+        whereCondition = whereCondition.replace(") ",")")
+        whereCondition = whereCondition.replace(" ) ",")")
+        whereCondition = whereCondition.replace(" )",")")
 
+        whereCondition = whereCondition.replace(" <=","<=")
+        whereCondition = whereCondition.replace(" <= ","<=")
+        whereCondition = whereCondition.replace("<= ","<=")
 
-        #On créer un tableau avec les condition selon leur logique 
-        #priorité des parenthèse
+        whereCondition = whereCondition.replace(">= ",">=")
+        whereCondition = whereCondition.replace(" >= ",">=")
+        whereCondition = whereCondition.replace(" >=",">=")
 
-        condition = []
-        for _ in whereDecoupe:
-            condition.append("")
-        whereFinish = False
-        compteur = 0
+        whereCondition = whereCondition.replace(" <","<")
+        whereCondition = whereCondition.replace(" < ","<")
+        whereCondition = whereCondition.replace("< ","<")
 
-        parentheseOuverte = 0
-        
-        position = 0
-        for elem in whereDecoupe:
-            if elem == "(":
-                if condition[position] != "":
-                    position += 1
-                parentheseOuverte += 1
-                condition[position] = condition[position] + " " + elem
-            elif elem == ")" and parentheseOuverte >= 1:
-                parentheseOuverte -= 1
-                condition[position] = condition[position] + " " + elem
-                position += 1
-            else:
-                condition[position] = condition[position] + " " + elem
-            
-        #On supprime les valeurs null
-        conditionSecondpart = []
-        for elem in condition:
-            if elem != '':
-                conditionSecondpart.append(elem.strip())
+        whereCondition = whereCondition.replace("> ",">")
+        whereCondition = whereCondition.replace(" > ",">")
+        whereCondition = whereCondition.replace(" >",">")
 
-        #Création de l'arbre de décision 
-        #Règle:
-        #Si j'ai une parenthèse ouvrante : Je créer deux fils, et si gauche libre alors je met la parenthèse au gauche, sinon a celui de droite
-        #Si j'ai parenthèse qui ferme je remonte au parent et je la ferme
-        #Si mon expression contient un mot spécial (and,or,not) je la coupe en deux et j'ajoute la condition au noeud actuellle et les condition au enfant a gauche et droite
-        
-        rootNode = NodeCondition(None,None,None,None)
-        actualNode = rootNode
-        specialWords = ["AND","OR","NOT"]
-        
-        for elem in conditionSecondpart:
-            print(elem)
-            modify = False
-            if elem[0] == "(":
-                if actualNode.child_left_free():
-                    actualNode.new_child_left()
-                    actualNode = actualNode.left
-                    actualNode.openCondition = True
-                elif actualNode.child_right_free():
-                    actualNode.new_child_right()
-                    actualNode = actualNode.right
-                    actualNode.openCondition = True
-                modify = True
-            
-            specialWordDetected = False    
-            for specialWord in specialWords:
-                if specialWord in elem and len(elem) > len(specialWord): #si "condition1 AND|OR|NOT condition2"
-                    #TODO ici il faut détceter cond OR cond OR cond
-                    specialWordDetected = True
-                    restart = True
-                    compteurSpeecialWord = elem.count(specialWord)
-                    while restart:
-                        if actualNode.child_left_free():
-                            actualNode.new_child_left()
-                            actualNode.operateur = specialWord
-                            actualNode.left.condition = elem.split(specialWord)[0]
-                            
-                            compteurSpeecialWord -= 1
-                            restart = compteurSpeecialWord <= 0
-                        if actualNode.child_right_free():
-                            actualNode.new_child_right()
-                            actualNode.operateur = specialWord
-                            actualNode.right.condition = elem.split(specialWord)[1]
-                            restart = False
-                            
-                            compteurSpeecialWord -= 1
-                            restart = compteurSpeecialWord <= 0
-                        
-                        if (not actualNode.child_left_free() and not actualNode.child_right_free()) and restart:
-                            
-                            #si pas de parent alors on en créer un nouveau 
-                            if actualNode.parent == None:
-                                #on créer le parent
-                                #TODO créer une fonction pour créer un parent
-                                print("creation parent")
-                                newNode = NodeCondition(None,actualNode,None,None)
-                                actualNode.parent = newNode
-                                actualNode = actualNode.parent
-                            else:
-                                actualNode = actualNode.parent
-                        
-                    modify = True
-                if specialWord in elem and len(elem) == len(specialWord): #si "AND|OR|NOT"
-                    #on remonte  et on ecrit la condition 
-                    specialWordDetected = True
-                    actualNode = actualNode.parent
-                    actualNode.operateur = specialWord
-                    modify = True
-            #Si on a (age > 25) 
-            if modify and specialWordDetected == False and len(elem) > 2: #si != '()'
-                actualNode.condition = elem
+        whereCondition = whereCondition.replace("!= ","!=")
+        whereCondition = whereCondition.replace(" != ","!=")
+        whereCondition = whereCondition.replace(" !=","!=")
+
+        whereCondition = whereCondition.replace("= ","=")
+        whereCondition = whereCondition.replace(" = ","=")
+        whereCondition = whereCondition.replace(" =","=")
 
 
-            if modify == False and elem != ")":
-                #on ajoute elem au noeud actuelle 
-                actualNode.condition = elem
-            if elem[-1] == ")":
-                if actualNode.openCondition == True:
-                    actualNode.openCondition = False
-                elif actualNode.parent.right == actualNode and actualNode.parent.operateur != '' and actualNode.parent.openCondition == True:
-                    actualNode = actualNode.parent
-                    actualNode.openCondition = False
-                else:
-                    print("Une erreur")
-                    return 
-
-        #rootNode.draw()
-        
-        self.where = rootNode   
-
-
+        self.where = ShuntingYard(whereCondition)
 
         """
         print(f"WHERE CONDITION : {whereCondition}")
         print(f"Decoupé : {whereDecoupe}")
         print(f"Condition : {conditionSecondpart}")
         """
-
+    
     def orderByCondition(self,string) -> bool:
         orderByCondition = string.split("ORDER BY")[1].strip()
         
