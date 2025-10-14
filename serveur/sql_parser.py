@@ -372,7 +372,6 @@ class Parser:
             else:
                 condition[position] = condition[position] + " " + elem
             
-
         #On supprime les valeurs null
         conditionSecondpart = []
         for elem in condition:
@@ -390,6 +389,7 @@ class Parser:
         specialWords = ["AND","OR","NOT"]
         
         for elem in conditionSecondpart:
+            print(elem)
             modify = False
             if elem[0] == "(":
                 if actualNode.child_left_free():
@@ -405,21 +405,39 @@ class Parser:
             specialWordDetected = False    
             for specialWord in specialWords:
                 if specialWord in elem and len(elem) > len(specialWord): #si "condition1 AND|OR|NOT condition2"
+                    #TODO ici il faut détceter cond OR cond OR cond
                     specialWordDetected = True
                     restart = True
+                    compteurSpeecialWord = elem.count(specialWord)
                     while restart:
                         if actualNode.child_left_free():
                             actualNode.new_child_left()
                             actualNode.operateur = specialWord
                             actualNode.left.condition = elem.split(specialWord)[0]
-                            restart=False
+                            
+                            compteurSpeecialWord -= 1
+                            restart = compteurSpeecialWord <= 0
                         if actualNode.child_right_free():
                             actualNode.new_child_right()
                             actualNode.operateur = specialWord
                             actualNode.right.condition = elem.split(specialWord)[1]
                             restart = False
+                            
+                            compteurSpeecialWord -= 1
+                            restart = compteurSpeecialWord <= 0
+                        
                         if (not actualNode.child_left_free() and not actualNode.child_right_free()) and restart:
-                            actualNode = actualNode.parent
+                            
+                            #si pas de parent alors on en créer un nouveau 
+                            if actualNode.parent == None:
+                                #on créer le parent
+                                #TODO créer une fonction pour créer un parent
+                                print("creation parent")
+                                newNode = NodeCondition(None,actualNode,None,None)
+                                actualNode.parent = newNode
+                                actualNode = actualNode.parent
+                            else:
+                                actualNode = actualNode.parent
                         
                     modify = True
                 if specialWord in elem and len(elem) == len(specialWord): #si "AND|OR|NOT"

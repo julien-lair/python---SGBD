@@ -122,10 +122,10 @@ class Table:
         for line in self.lines: 
             if len(parser.columns_name) == 1 and parser.columns_name[0] == "*": # cas où SELECT *
                 if whereCondition:
+                    parser.where.draw()
                     try :
                         if self.select_where(line,parser.where):
                             result.append(line)
-                            
                     except Exception as e:
                         print(e)
                         return
@@ -155,9 +155,9 @@ class Table:
             colNeedToBeOrder = parser.orderBy["colonne"]
             order = parser.orderBy["order"]
             if order == "ASC":
-                result = sorted(result, key=lambda row: self.get_value_of_col_in_row(row, 'age'))
+                result = sorted(result, key=lambda row: self.get_value_of_col_in_row(row, colNeedToBeOrder))
             elif order == "DESC":
-                result = sorted(result, key=lambda row: self.get_value_of_col_in_row(row, 'age'),reverse=True)
+                result = sorted(result, key=lambda row: self.get_value_of_col_in_row(row, colNeedToBeOrder),reverse=True)
             else:
                 print("Erreur: Une erreur c'est produite lors du ORDER BY")
                 return
@@ -196,6 +196,7 @@ class Table:
         for col in row:
             if col["colonne"] == colName:
                 return col["value"]
+    
     def update(self,parser : Parser):
         
         for row in self.lines:
@@ -223,24 +224,18 @@ class Table:
 
         #On met à jour le fichier 
         
-    
     def delete(self, parser : Parser):
         for line in self.lines:
             if parser.where != None:
                 if self.select_where(line,parser.where):
                     #la condition est respecter on supprime la ligne
+                    self.lines.remove(line)
                     self.write_updateLine(line,delete=True)
             else:
                 #On supprime la ligne
+                self.lines.remove(line)
                 self.write_updateLine(line,delete=True)
-                
-                """
-                TODO
-                ici pour la supprésion : ajouter dans l'encodage un flag delete 
-                et dans la ligne du .db mettre le flag a jour, mettre tous les X caracteres suivant sur null " "b
-                """
 
-    
     def describe(self):
         print(f"Nom de la table : {self.name}\n")
 
@@ -263,6 +258,7 @@ class Table:
             file = open(self.path, "ab")
             file.write(rowBytes)
             file.close()
+    
     def write_updateLine(self,line,delete = False):
         #On réucpère d'abord l'id de la colonne (nous permettera de se déplacer plus rapidement dans le fichier)
         id = None 
@@ -296,6 +292,7 @@ class Table:
 
         #On passe id fois les parametre pour modifier ce qui nous intérèsse 
         for _ in range(int(id)):
+            file.seek(1,1) #on passe le flag de DELETE
             for col in self.columns:
                 if col["type"] == "INT":
                     file.seek(4,1)
@@ -313,7 +310,11 @@ class Table:
             file.write(rowBytes)
         if delete == True:
             #On écrit que des 0
-            nbr_zero = len(rowBytes)
+            size_line = len(rowBytes) - 1 #-1 car on va pas écrire sur le flag de delete
+            file.write(struct.pack("?",True))
+            empty_data = b" " * size_line 
+            file.write(empty_data)
+
 
         file.close()
 
@@ -350,9 +351,12 @@ class Table:
             print(e)
 
     def encode_row(self,line):
-        #Encodage : on écrit en bytes diretement les valeurs, pour le text on ecrit sur TAILLE_MAX_TEXT
+        #Encodage : on écrit en bytes diretement les valeurs, pour le text on ecrit sur TAILLE_MAX_TEXT bytes
+        #Encodage : avant chaques lignes encodé on ajoute un flag (type "?") pour delete si la ligne est supprimer où non 
         #Exemple de line reçu : [{'colonne': '_id', 'type': 'SERIAL', 'value': '0'}, {'colonne': 'age', 'type': 'INT', 'value': '6'}]
         rowBytes = b""
+        #on ajoute le flag de delete sur false
+        rowBytes += struct.pack("?",False)
         for col in line:
             if col["type"] == "INT":
                 rowBytes += struct.pack("i", int(col["value"]))
@@ -367,6 +371,27 @@ class Table:
                 rowBytes += struct.pack("I", int(col["value"]))
         
         return rowBytes
+   
+    def get_size_of_line(self):
+        """
+        Retourne la taille en bytes d'une ligne dans le .db
+        """
+        size = 0
+        #on ajoute le flag de delete sur false
+        size += 1
+        for col in self.columns:
+            if col["type"] == "INT":
+                size += 4
+            elif col["type"] == "FLOAT":
+                rsize += 4
+            elif col["type"] == "TEXT":
+                size += TAILLE_MAX_TEXT
+            elif col["type"] == "BOOL":
+                size += 1
+            elif col["type"] == "SERIAL":
+                size += 4
+        
+        return size
 
     def load_raw(self):
         #on charge les lignes 
@@ -400,32 +425,35 @@ class Table:
             #fin du header
             # On récupère les données 
             for _ in range(compteurSerial):
+                #On check le flag de delete : si sur True on saute la ligne
+                flagDelete = struct.unpack("?",file.read(1))[0]
                 line = copy.deepcopy(self.columns)
                 for col in line:
                     col["value"] = None
 
-                for col in line:
-                    typeCol = col["type"]
+                if flagDelete == False: #la ligne n'est pas supprimé
+                    for col in line:
+                        typeCol = col["type"]
 
-                    if typeCol == "INT":
-                        col["value"] = struct.unpack("i",file.read(4))[0]
-                    elif typeCol == "FLOAT":
-                        col["value"] = struct.unpack("f",file.read(4))[0]
-                    elif typeCol == "TEXT":
-                        col["value"] = file.read(TAILLE_MAX_TEXT).decode("utf-8").strip()
-                    elif typeCol == "BOOL":
-                        col["value"] = struct.unpack("?",file.read(1))[0]
-                    elif typeCol == "SERIAL":
-                        col["value"] = struct.unpack("I",file.read(4))[0]
-                self.lines.append(line)
-            
+                        if typeCol == "INT":
+                            col["value"] = struct.unpack("i",file.read(4))[0]
+                        elif typeCol == "FLOAT":
+                            col["value"] = struct.unpack("f",file.read(4))[0]
+                        elif typeCol == "TEXT":
+                            col["value"] = file.read(TAILLE_MAX_TEXT).decode("utf-8").strip()
+                        elif typeCol == "BOOL":
+                            col["value"] = struct.unpack("?",file.read(1))[0]
+                        elif typeCol == "SERIAL":
+                            col["value"] = struct.unpack("I",file.read(4))[0]
+                    self.lines.append(line)
+                else:
+                    #On saute la ligne supprimer 
+                    tailleLine = self.get_size_of_line() - 1 #-1 car on a déjà lu le flag
+                    file.seek(tailleLine,1)
             file.close()
         except Exception as e:
             print("Erreur : une erreur lors de la lecture des donnée de la table.")
             print(e)
-
-
-
 
     def header_decoder(self):
         """
@@ -474,7 +502,6 @@ class Table:
         except Exception as e:
             print(f"Erreur : Le fichier {self.path} est mal formatté")
 
-
     def verify_type_is_correct(self,value,value_type)->bool:
         #les type pris en charge "INT","FLOAT","TEXT","BOOL","SERIAL"
         if value_type == "INT":
@@ -506,6 +533,7 @@ class Table:
                 return True
             else:
                 return False
+    
     def verify_missing_colonne(self,colonneInput)->bool:
         #On vérifie si l'utilisateur à spécifier tous les colonnes non SERIAL
         #Je part du principe que toutes les colonnes sont NOT NULL
@@ -552,20 +580,18 @@ class Table:
         if node.left == None and node.right == None and node.resultCondition != None:
             return node.resultCondition
             
-    
     def test_condition_where_leaf(self,node : NodeCondition, line):
         condition = node.condition
         condition = condition.replace("(","")
         condition = condition.replace(")","")
         condition = condition.strip()
         #on split sois-même car si j'ai une chaine de ractere avec des espaces erreur : "ceci est un exemple" serait split en plusieurs morceaux
-
         parts = []
         quoteOppen = False
         strToAdd = ""
         typeQuote = ""
         for i in condition:
-            if i in "'" or i in '"' and quoteOppen == False: #début chaine de carcateres entre "" 
+            if (i in "'" or i in '"') and quoteOppen == False: #début chaine de carcateres entre "" 
                 quoteOppen = True 
                 typeQuote = i
                 strToAdd = i
@@ -647,8 +673,14 @@ class Table:
         elif type == "FLOAT":
             return float(value)
         elif type == "TEXT":
-            return str(value[1:-1]) #On suppirme les "" du text
+            if value[0] == value[-1] and value[0] in ["'",'"']:
+                return str(value[1:-1]) #On suppirme les "" du text
+            else:
+                return str(value)
         elif type == "BOOL":
-            return bool(value)
+            if value.upper() == "TRUE":
+                return True
+            elif value.upper() == "FALSE":
+                return False
         elif type == "SERIAL":
             return int(value)
