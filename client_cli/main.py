@@ -1,4 +1,5 @@
 import socket
+import json 
 
 HOST = "127.0.0.1"
 PORT = 1234
@@ -19,7 +20,14 @@ def main():
         if len(cmd) > 0 and cmd.strip() != "exit":
             serveur.send(cmd.encode())
             data = serveur.recv(4096).decode()
-            print(data)
+            jsonData = json.loads(data)
+            if jsonData["statut"] == "error":
+                print(f'Erreur: {jsonData["code"]} - {jsonData["message"]}')
+            elif jsonData["statut"] == "sucess":
+                print(jsonData["message"])
+                if jsonData["data"] != None:
+                    print(jsonData["data"])
+
 
 if __name__ == "__main__":
     main()

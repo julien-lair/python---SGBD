@@ -3,6 +3,7 @@ from sql_parser import Parser
 import copy 
 from ShuntingYard import ShuntingYard
 from result import resultAPI
+import json
 
 TAILLE_MAX_TEXT = 1000 #équivaut à 1000 caractere ASCII
 class Table:
@@ -114,6 +115,7 @@ class Table:
       
 
         self.write_line(newLines)
+        resultAPI.create(f"Les données ont bien été ajoutées.")
 
     def select(self,parser : Parser):
         #PARTIE 1 : SELECT [*|col] FROM table
@@ -173,8 +175,10 @@ class Table:
                 result = result[parser.offset:parser.limit + parser.offset]
             if len(result) > parser.limit and parser.offset == None:
                 result = result[:parser.limit]
-            
+        
+        resultAPI.sucess("",json.dumps(result))   
         #PARTIE N : affichage résultat 
+        """
         if len(result) > 0:
             tailleColonne = 12
 
@@ -194,7 +198,7 @@ class Table:
                     print(f'| {col["value"]}{" "*(tailleColonne-len(str(col["value"])))}',end="")
                 print("|")
                 print("-" * (len(result[0]) * (tailleColonne+2) +1))
-
+        """
     def get_value_of_col_in_row(self, row, colName):
         for col in row:
             if col["colonne"] == colName:
@@ -229,8 +233,7 @@ class Table:
                             resultAPI.syntaxError(f"Erreur : le type de '{colUpdate['value']}' n'est pas le bon.")
                             return
             self.write_updateLine(row)
-
-        #On met à jour le fichier 
+        resultAPI.create("Les données ont bien été modifiées.")
         
     def delete(self, parser : Parser):
         for line in self.lines:
@@ -248,8 +251,11 @@ class Table:
                 #On supprime la ligne
                 self.lines.remove(line)
                 self.write_updateLine(line,delete=True)
-
+        resultAPI.sucess("Les données sélectionnées ont bien été supprimées.")
     def describe(self):
+        data = {"table_name":self.name,"colonnes":json.dumps(self.columns),"serial":json.dumps(self.serialColumns)}
+        resultAPI.sucess("",data)
+        """
         print(f"Nom de la table : {self.name}\n")
 
         print("Colonnes :")
@@ -262,7 +268,7 @@ class Table:
                 print(f'  - {serial["colonne"]} (compteur = {serial["value"]})')
         else:
             print("\nAucune colonne de type SERIAL.")
-
+        """
     def write_line(self,lines):
         self.update_serial()
         for line in lines:

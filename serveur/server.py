@@ -4,6 +4,7 @@ from result import resultAPI
 import socket
 import threading
 from result import resultAPI
+import json
 DEV = False
 class Server:
 
@@ -35,9 +36,9 @@ class Server:
                 return
             
             while True:
-                request = client.recv(5000).decode().strip()
+                request = client.recv(4096).decode().strip()
                 self.database.execute(request)
-                client.send(str(resultAPI.show()).encode() + b"\n")
+                client.send(json.dumps(resultAPI.show()).encode() + b"\n")
                 resultAPI.reset()
         except ConnectionResetError:
             print("Client déconnecter")

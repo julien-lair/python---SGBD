@@ -45,7 +45,7 @@ class Database:
         #on ajoute la table à notre mémoire 
         table = Table(self.databaseDir + name + self.fileExtension)
         self.tables.append(table)
-
+        resultAPI.create(f"Table '{name}' créer avec succès")
     def drop_table(self,name):
         #DROP TABLE name 
         #Vérification si la table éxiste
@@ -59,6 +59,7 @@ class Database:
             if table.name == name:
                 self.tables.remove(table)
                 break
+        resultAPI.sucess(f"La table '{name}' à été supprimée.")
 
     def load_table(self):
         #On récupère toutes les tables et on les stockes dans un array 
