@@ -3,7 +3,7 @@ import os
 import struct 
 from table import Table
 from typing import List
-
+from result import resultAPI
 
 class Database:
 
@@ -15,7 +15,7 @@ class Database:
     def create_table(self, name, columns : list[str], type : list[str]):
         #Vérification si la table existe déjà
         if(os.path.exists(self.databaseDir + name + self.fileExtension)):
-           print(f"erreur la table {name} existe déjà")
+           resultAPI.conflitError(f"Erreur : la table '{name}' existe déjà.")
            return
         
 
@@ -26,7 +26,7 @@ class Database:
             if(type[columns.index("_id")] == "SERIAL"):
                 verificationId = True 
             else:
-                print("Le champs _id doit être de type SERIAL, vous pouvez ne pas spécifier _id il sera ajouter automatiquement")
+                resultAPI.syntaxError("Le champ _id doit être de type SERIAL. Vous pouvez ne pas le spécifier, il sera ajouté automatiquement.")
                 return 
             
         if verificationId == False: 
@@ -50,8 +50,8 @@ class Database:
         #DROP TABLE name 
         #Vérification si la table éxiste
         if(not(os.path.exists(self.databaseDir + name + self.fileExtension))):
-           print(f"erreur la table {name} n'existe pas")
-           return
+            resultAPI(f"Erreur : la table '{name}' n'existe pas.")
+            return
         os.remove(self.databaseDir + name + self.fileExtension)
 
         #on suppirme la table de notre mémoire 
@@ -91,7 +91,7 @@ class Database:
             elif parser.action == "DELETE":
                 self.delete_table(parser)
             else:
-                print("Une erreur")
+                resultAPI.syntaxError("Action SQL non reconnue.")
     
     def create_header(self,name,columns,type):
         """
@@ -148,7 +148,7 @@ class Database:
                 if table.name == parser.table:
                     table.insert(parser)
                     return 
-            print("Erreur : la table est inconnue")
+            resultAPI.notFound("La table est inconnue.")
     
     def describe_table(self,parser : Parser):
         if parser.action == "DESCRIBE":
@@ -156,7 +156,7 @@ class Database:
                 if table.name == parser.table:
                     table.describe()
                     return 
-            print("Erreur : la table est inconnue")
+            resultAPI.notFound("La table est inconnue.")
     
     def select_table(self,parser : Parser):
         if parser.action == "SELECT":
@@ -164,7 +164,7 @@ class Database:
                 if table.name == parser.table:
                     table.select(parser)
                     return 
-            print("Erreur : la table est inconnue")
+            resultAPI.notFound("La table est inconnue.")
 
     def update_table(self,parser : Parser):
         if parser.action == "UPDATE":
@@ -172,7 +172,7 @@ class Database:
                 if table.name == parser.table:
                     table.update(parser)
                     return 
-            print("Erreur : la table est inconnue")
+            resultAPI.notFound("La table est inconnue.")
 
     def delete_table(self,parser : Parser):
         if parser.action == "DELETE":
@@ -180,4 +180,4 @@ class Database:
                 if table.name == parser.table:
                     table.delete(parser)
                     return 
-            print("Erreur : la table est inconnue")
+            resultAPI.notFound("La table est inconnue.")

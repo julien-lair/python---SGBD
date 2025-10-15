@@ -2,6 +2,7 @@ import struct
 from sql_parser import Parser
 import copy 
 from ShuntingYard import ShuntingYard
+from result import resultAPI
 
 TAILLE_MAX_TEXT = 1000 #équivaut à 1000 caractere ASCII
 class Table:
@@ -16,7 +17,7 @@ class Table:
         
     def insert(self,parser : Parser):
         if parser.table != self.name:
-            print("Erreur : erreur nom de table non correspondante")
+            resultAPI.notFound("Erreur : nom de table non correspondant.")
             return 
         
         newLines = []
@@ -45,7 +46,7 @@ class Table:
                         else:
                             newLine[line.index(value)]["value"] = value
                     else:
-                        print(f'Erreur : {value} n\'est pas de type {self.columns[line.index(value)]["type"]}')
+                        resultAPI.syntaxError(f"Erreur : {value} n'est pas de type {self.columns[line.index(value)]['type']}.")
                         return
             elif len(line) == len(self.columns) - 1 and self.columns[0]["colonne"] == "_id" and self.columns[0]["type"] == "SERIAL" and len(parser.columns_name) == 0:
                 """
@@ -59,14 +60,14 @@ class Table:
                         else:
                             newLine[line.index(value) + 1]["value"] = value
                     else:
-                        print(f'Erreur : {value} n\'est pas de type {self.columns[line.index(value) + 1]["type"]}')
+                        resultAPI.syntaxError(f"Erreur : {value} n'est pas de type {self.columns[line.index(value) + 1]['type']}.")
                         return
             elif len(parser.columns_name) != 0:
                 """
                 Ici l'utilisateur fait une requête du style : INSERT INTO table (col,col...) VALUES (..),(..);
                 """
                 if self.verify_missing_colonne(parser.columns_name) == False:
-                    print("Vous devez spécifier toutes les colonnes dans votre INSERT, seul les colonne de type SERIAL sont optionel à spécifier")
+                    resultAPI.syntaxError("Erreur : vous devez spécifier toutes les colonnes dans votre INSERT, seules les colonnes de type SERIAL sont optionnelles à spécifier.")
                     return 
                 
                 for i in range(len(line)):
@@ -78,7 +79,7 @@ class Table:
                             typeCol = col["type"]
                             break
                     if typeCol == "":
-                        print(f"Erreur : La colonne {colToAdd} est inconnue")
+                        resultAPI.notFound(f"Erreur : la colonne '{colToAdd}' est inconnue.")
                         return
                     if self.verify_type_is_correct(valeur, typeCol):
                         for elem in newLine:
@@ -91,9 +92,9 @@ class Table:
 
             else:
                 if self.columns[0]["colonne"] == "_id" and self.columns[0]["type"] == "SERIAL":
-                    print("Erreur: Vous devez spécifier un champs pour chaques colonnes (vous pouvez ne pas spécifier pour _id)")
+                    resultAPI.syntaxError("Erreur : vous devez spécifier un champ pour chaque colonne (vous pouvez ne pas spécifier pour _id).")
                 else:
-                    print("Erreur: Vous devez spécifier un champs pour chaques colonnes")
+                    resultAPI.syntaxError("Erreur : vous devez spécifier un champ pour chaque colonne.")
                 return
             
             #auto incrmeent sur les champs de type serial : 
@@ -126,7 +127,7 @@ class Table:
                         if self.select_where(line,parser.where):
                             result.append(line)
                     except Exception:
-                        print("Erreur : La condition WHERE n'est pas correcte")
+                        resultAPI.syntaxError("Erreur : la condition WHERE n'est pas correcte.")
                         return
                 else:
                     result.append(line)
@@ -144,10 +145,10 @@ class Table:
                                 if self.select_where(line,parser.where):
                                     result.append(line)
                             except Exception:
-                                print("Erreur : La condition WHERE n'est pas correcte")
+                                resultAPI.syntaxError("Erreur : la condition WHERE n'est pas correcte.")
                                 return
                         except Exception as e:
-                            print(e)
+                            resultAPI.syntaxError(f"Erreur : {e}")
                             return
                     else:
                         result.append(lineSelect)
@@ -162,12 +163,11 @@ class Table:
             elif order == "DESC":
                 result = sorted(result, key=lambda row: self.get_value_of_col_in_row(row, colNeedToBeOrder),reverse=True)
             else:
-                print("Erreur: Une erreur c'est produite lors du ORDER BY")
+                resultAPI.syntaxError("Erreur : une erreur s'est produite lors du ORDER BY.")
                 return
 
         #on regarde si on à une LIMIT et par la suite un OFFSET 
         if parser.limit != None:
-            print(parser.offset)
             #On vérifie directement si il y a un décalage avec OFFSET
             if parser.offset != None:
                 result = result[parser.offset:parser.limit + parser.offset]
@@ -218,7 +218,7 @@ class Table:
                                         #la condition est respecter on modifie la colonne
                                         colData["value"] = updateValue
                                 except Exception:
-                                    print("Erreur : La condition WHERE n'est pas correcte")
+                                    resultAPI.syntaxError("Erreur : la condition WHERE n'est pas correcte.")
                                     return
                                 
                             else:
@@ -226,7 +226,7 @@ class Table:
                                 colData["value"] = updateValue
                             
                         else:
-                            print(f'Erreur: Le type de {colUpdate["value"]} n\'est pas le bon.')
+                            resultAPI.syntaxError(f"Erreur : le type de '{colUpdate['value']}' n'est pas le bon.")
                             return
             self.write_updateLine(row)
 
@@ -241,7 +241,7 @@ class Table:
                         self.lines.remove(line)
                         self.write_updateLine(line,delete=True)
                 except Exception:
-                    print("Erreur : La condition WHERE n'est pas correcte")
+                    resultAPI.syntaxError("Erreur : la condition WHERE n'est pas correcte.")
                     return
                
             else:
@@ -360,8 +360,8 @@ class Table:
                         break
             file.close()
         except Exception as e:
-            print("Erreur : une erreur lors de la mise à jour de l'entête de la table.")
-            print(e)
+            resultAPI.syntaxError(f"Erreur : une erreur s'est produite lors de la mise à jour de l'entête de la table. Détails : {e}")
+
 
     def encode_row(self,line):
         #Encodage : on écrit en bytes diretement les valeurs, pour le text on ecrit sur TAILLE_MAX_TEXT bytes
@@ -465,8 +465,8 @@ class Table:
                     file.seek(tailleLine,1)
             file.close()
         except Exception as e:
-            print("Erreur : une erreur lors de la lecture des donnée de la table.")
-            print(e)
+            resultAPI.syntaxError(f"Erreur : une erreur s'est produite lors de la lecture des données de la table. Détails : {e}")
+
 
     def header_decoder(self):
         """
@@ -513,7 +513,7 @@ class Table:
             file.close()
 
         except Exception as e:
-            print(f"Erreur : Le fichier {self.path} est mal formatté")
+            resultAPI.syntaxError(f"Erreur : le fichier '{self.path}' est mal formaté.")
 
     def verify_type_is_correct(self,value,value_type)->bool:
         #les type pris en charge "INT","FLOAT","TEXT","BOOL","SERIAL"
@@ -535,7 +535,7 @@ class Table:
             conditionA = isinstance(value, str) and value[0] == value[-1] and value[0] in ("'",'"')
             conditionB = len(value.encode("utf-8")) <= TAILLE_MAX_TEXT
             if conditionB == False:
-                print("Le champ de type TEXT est trop long ", end="")
+                resultAPI.syntaxError("Erreur : le champ de type TEXT est trop long.")
             return conditionA and conditionB
         
         elif value_type == "BOOL":
@@ -558,7 +558,6 @@ class Table:
         return True
     
     def select_where(self, line, RPN: ShuntingYard)->bool:
-        #print(f"la ligne {line} est {RPN.condition_respected(line)}")
         return RPN.condition_respected(line)
     
    

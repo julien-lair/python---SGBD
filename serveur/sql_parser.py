@@ -1,5 +1,6 @@
 import re
 from ShuntingYard import ShuntingYard
+from result import resultAPI
 blacklistWord  = ["CREATE","TABLE","DROP","INSERT","INTO",
                   "VALUES","SELECT","FROM","WHERE","ORDER",
                   "BY","ASC","DESC","LIMIT","OFFSET","UPDATE",
@@ -46,7 +47,7 @@ class Parser:
         elif action == "DELETE":
             self.deleteCondition(string[:-1])
         else:
-            print(f"{action} n'est pas reconnue")
+            resultAPI.syntaxError("Action SQL non reconnue.")
             self.expressionValide = False
 
     def create(self, string):
@@ -65,7 +66,7 @@ class Parser:
                         colonnesNameAndType = string.strip().split("(")[1].split(")")[0].split(",")
 
                         if string.strip().split("(")[1].split(")")[1].strip() != "":
-                            print("Erreur : argument indésirable")
+                            resultAPI.syntaxError("Argument indésirable dans la requête.")
                             return
                         
                         #on vérifie si les colonnes et types sont valide
@@ -77,27 +78,27 @@ class Parser:
 
                             if self.verify_colomn_name(col.strip()):
                                 if col.strip() in self.columns_name:
-                                    print("Erreur : deux colonnes portent le même nom")
+                                    resultAPI.syntaxError("Deux colonnes portent le même nom.")
                                     return
                                 self.columns_name.append(col.strip())
                             else:
-                                print(f"Erreur : le nom {col} n'est pas valide")
+                                resultAPI.syntaxError(f"Le nom {col} n'est pas valide")
 
 
                             if self.verify_type(type.strip()):
                                 self.columns_type.append(type.strip())
                             else:
-                                print(f"Erreur : le type {type} n'est pas valide")
+                                resultAPI.syntaxError(f"Erreur : le type {type} n'est pas valide")
                         
                        
                         self.expressionValide = True
 
                 else:
-                    print("Erreur : expréssion invalide")
+                    resultAPI.syntaxError(f"L'expréssion n'est pas valide")
             else:
-                print(f"Erreur : expréssion invalide ")
+                resultAPI.syntaxError(f"L'expréssion n'est pas valide")
         except IndexError:
-            print("Erreur : expréssion invalide")
+            resultAPI.syntaxError(f"L'expréssion n'est pas valide")
 
     def drop(self,expression):
         #   DROP TABLE users
@@ -111,11 +112,11 @@ class Parser:
                         self.table = expression[2].strip()
                         self.expressionValide = True
                 else:
-                    print("Erreur : expréssion invalide")
+                    resultAPI.syntaxError(f"L'expréssion n'est pas valide")
             else:
-                print("Erreur : expréssion invalide")
+                resultAPI.syntaxError(f"L'expréssion n'est pas valide")
         except IndexError:
-            print("Erreur : expréssion invalide")
+            resultAPI.syntaxError(f"L'expréssion n'est pas valide")
 
     def insert(self,string):
         """
@@ -138,7 +139,7 @@ class Parser:
                                 #expression de type : INSERT INTO users VALUES ('Richard', 25, 20000, false);
                                 expressionIsWithColumnsName = False
                             else:
-                                print("Erreur: L'expression n'est pas valide")
+                                resultAPI.syntaxError(f"L'expréssion n'est pas valide")
                                 return
                         else:
                             #expression de type : INSERT INTO users (firstname, age, salary, disabled) VALUES ('Richard', 25, 20000, false);
@@ -152,11 +153,11 @@ class Parser:
                                 if self.verify_colomn_name(col.strip()):
                                     self.columns_name.append(col.strip())
                                 else:
-                                    print("Erreur : un nom de colonne ne convient pas.")
+                                    resultAPI.syntaxError(f"Nom de colonne invalide")
                                     return
 
                             if string.strip().split(")")[1].strip().split()[0] != "VALUES":
-                                print("Erreur: le mot clé VALUES est manquant")
+                                resultAPI.syntaxError(f"L'expréssion n'est pas valide : le mot clé VALUES est manquant.")
                                 return
                         
                         #on réucpère les valeurs à insérer après le VALUES
@@ -198,34 +199,32 @@ class Parser:
                             if(caractere == " "):
                                 continue
                             if(caractere!="," and ouvertureParenthese == False):
-                                print("Erreur : Commandes mal formaté")
+                                resultAPI.syntaxError(f"L'expréssion n'est pas valide")
                                 return
                         for line in lines:
-                            #print("-->.  ",end="")
                             valueLine = []
                             for elem in line.split(","):
-                                #print(elem + "  -  ",end="")
                                 valueLine.append(elem.strip())
                             self.values.append(valueLine)
                         
                         if len(lines) == 0:
-                            print("Erreur : Veuillez spécifier des valeurs")
+                            resultAPI.syntaxError(f"Valeurs introuvables, veuillez en spécifier.")
                             return
                         self.expressionValide = True
 
                 else:
-                    print("Erreur : expréssion invalide")
+                    resultAPI.syntaxError(f"L'expréssion n'est pas valide")
             else:
-                print(f"Erreur : expréssion invalide ")
+                resultAPI.syntaxError(f"L'expréssion n'est pas valide")
         except IndexError:
-            print("Erreur : expréssion invalide")
+            resultAPI.syntaxError(f"L'expréssion n'est pas valide")
 
     def select(self,string):
         self.action = "SELECT"
 
         #On récupère les colonnes à selectionner 
         if " FROM " not in string:
-            print("Erreur : Il manque le FROM")
+            resultAPI.syntaxError(f"L'expréssion n'est pas valide, il manque le FROM")
             return
 
         colonneSelectionner = string.split("FROM")[0].split("SELECT")[1].strip().split(",")
@@ -241,7 +240,7 @@ class Parser:
         if len(string.split("FROM")[1].strip().split()) > 1:
             if string.split("FROM")[1].strip().split()[1] not in "WHERE ORDER BY LIMIT":
                 #On a des mot inconnues à la fin de l'expression, exemple :  SELECT * FROM users where ..; (where en minuscule)
-                print("Erreur : expréssion invalide")
+                resultAPI.syntaxError(f"L'expréssion n'est pas valide")
                 return
 
         """
@@ -255,14 +254,15 @@ class Parser:
             if string.split("FROM")[1].strip().split()[1].strip() == "WHERE":
                 self.whereCondition(string)
             else:
-                print("Erruer : La condition WHERE doit se trouvé après la table sélectionner dans le FROM")
+                resultAPI.syntaxError("Erreur : la condition WHERE doit se trouver après la table sélectionnée dans le FROM.")
+                resultAPI.syntaxError(f"Expression SQL invalide — clause WHERE mal positionnée.")
                 return
             
             #Si un mot est présent après expréssion de WHERE, ça doit être : WHERE,ORDER BY, LIMIT
             if len(string.split("FROM")[1].strip().split()) > 0:
                 if string.split("FROM")[1].strip().split()[1] not in "WHERE ORDER BY LIMIT":
                     #On a des mot inconnues à la fin de l'expression, exemple :  SELECT * FROM users where ..; (where en minuscule)
-                    print("Erreur : expréssion invalide")
+                    resultAPI.syntaxError(f"L'expréssion n'est pas valide")
                     return
                 
         if "ORDER BY" in string:
@@ -273,7 +273,7 @@ class Parser:
                     if self.orderByCondition(string) != True:
                         return 
                 else:
-                    print("Erreur: Le ORDER BY doit être après le WHERE")
+                    resultAPI.syntaxError(f"Expression SQL invalide — clause ORDER BY mal positionnée.")
                     return
             else:
                 if self.orderByCondition(string) != True:
@@ -286,7 +286,7 @@ class Parser:
                     if self.limitCondition(string) != True:
                         return
                 else:
-                    print("Erreur: Le LIMIT doit être après le WHERE")
+                    resultAPI.syntaxError(f"Expression SQL invalide — clause LIMIT mal positionnée.")
                     return 
                 
             if "ORDER BY" in string:
@@ -295,7 +295,7 @@ class Parser:
                     if self.limitCondition(string) != True:
                         return
                 else:
-                    print("Erreur: Le LIMIT doit être après le ORDER BY")
+                    resultAPI.syntaxError(f"Expression SQL invalide — clause LIMIT mal positionnée.")
                     return 
             if self.limitCondition(string) != True:
                 return
@@ -307,9 +307,9 @@ class Parser:
                     if self.offsetCondition(string) != True:
                         return
                 else:
-                    print("Erreur: OFFSET doit être après le LIMIT")
+                    resultAPI.syntaxError(f"Expression SQL invalide — clause OFFSET mal positionnée.")
             else:
-                print("Erreur: OFFSET doit être spécifier avec LIMIT")         
+                resultAPI.syntaxError(f"Expression SQL invalide — clause OFFSET droit être positionnée après LIMIT.") 
         
         self.expressionValide = True
 
@@ -359,11 +359,6 @@ class Parser:
 
         self.where = ShuntingYard(whereCondition)
 
-        """
-        print(f"WHERE CONDITION : {whereCondition}")
-        print(f"Decoupé : {whereDecoupe}")
-        print(f"Condition : {conditionSecondpart}")
-        """
     
     def orderByCondition(self,string) -> bool:
         orderByCondition = string.split("ORDER BY")[1].strip()
@@ -378,7 +373,7 @@ class Parser:
                 if orderByConditionSplit[1].strip() == "ASC" or orderByConditionSplit[1].strip() == "DESC":
                     self.orderBy = {"colonne":orderByConditionSplit[0].strip(),"order":orderByConditionSplit[1].strip()}
                     return True
-        print("Erreur : mauvaise condition dans le ORDER BY")
+        resultAPI.syntaxError('Erreur : condition invalide dans ORDER BY.')
         return False
 
     def limitCondition(self,string)->bool:
@@ -394,9 +389,9 @@ class Parser:
                 self.limit = valeur
                 return True
             except (ValueError, TypeError):
-                print("Erreur : Veuillez précisez un entier valide pour LIMIT")
+                resultAPI.syntaxError("Veuillez spécifier un entier valide pour la clause LIMIT.")
                 return True
-        print("Erreur : mauvaise condition dans le LIMIT")
+        resultAPI.syntaxError("Condition invalide dans le LIMIT")
         return False
         
     def offsetCondition(self,string)->bool:
@@ -411,9 +406,9 @@ class Parser:
                 self.offset = valeur
                 return True
             except (ValueError, TypeError):
-                print("Erreur : Veuillez précisez un entier valide pour OFFSET")
+                resultAPI.syntaxError("Veuillez spécifier un entier valide pour la clause OFFSET.")
                 return False
-        print("Erreur : mauvaise condition dans le OFFSET")
+        resultAPI.syntaxError("Condition invalide dans le OFFSET")
         return False
     
     def describe(self,string):
@@ -424,7 +419,7 @@ class Parser:
                 self.table = tableName.strip()
                 self.expressionValide = True
         else:
-            print("Erreur : Argument indésirable")
+            resultAPI.syntaxError("Argument indésirable")
             return
 
     def updateCondition(self,string):
@@ -447,10 +442,10 @@ class Parser:
                             if self.verify_colomn_name(col):
                                 updateDict.append({"colonne":col,"value":value})
                             else:
-                                print("Erreur: veuillez spécifier des paramètre valide dans le SET de UPDATE")
+                                resultAPI.syntaxError("Veuillez spécifier des paramètres valides dans la clause SET de l'UPDATE.")
                                 return
                         else:
-                            print("Erreur: veuillez spécifier des paramètre valide dans le SET de UPDATE")
+                            resultAPI.syntaxError("Veuillez spécifier des paramètres valides dans la clause SET de l'UPDATE.")
                             return
                     #On à fini avec les update
                     self.update = updateDict
@@ -461,10 +456,10 @@ class Parser:
                     
                     self.expressionValide = True
                 else:
-                    print("Erreur: il faut spécifier SET après le nom de la table")
+                    resultAPI.syntaxError("Erreur : il faut spécifier SET après le nom de la table.")
                     return
             else:
-                print("Erreur: Veuillez spécifier un nom de table correcte")
+                resultAPI.notFound("Erreur : veuillez spécifier un nom de table correct.")
                 return
         else:
             return
@@ -487,32 +482,32 @@ class Parser:
                    
                     self.expressionValide = True
                 else:
-                    print("Erreur: Veuillez spécifier un nom de table correcte")   
+                    resultAPI.notFound("Erreur : veuillez spécifier un nom de table correct.")
                     return
             else:
-                print("Erreur: il faut spécifier FROM après DELETE")
+                resultAPI.syntaxError("Erreur : il faut spécifier FROM après DELETE.")
                 return
         else:
             return
 
     def verify_table_name(self,name)->bool:
         if not re.match(r"^[A-Za-z][A-Za-z0-9_]*$", name):
-            print(f"Erreur : nom de table '{name}' invalide. Il doit commencer par une lettre et ne contenir que des caractères alphanumériques ou '_'.")
+            resultAPI.syntaxError(f"Erreur : nom de table '{name}' invalide. Il doit commencer par une lettre et ne contenir que des caractères alphanumériques ou '_'.")
             return False
         
         if name in blacklistWord:
-            print(f"Erreur : le nom de table {name}, porte un nom interdit.")
+            resultAPI.conflitError(f"Erreur : le nom de table '{name}' porte un nom interdit.")
             return False
         
         return True
         
     def verify_colomn_name(self,name)->bool:
         if not re.match(r"[A-Za-z0-9_]+$", name):
-            print(f"Erreur : nom de colonne '{name}' invalide. il doit contenir seulement des lettre min maj, et _")
+            resultAPI.syntaxError(f"Erreur : nom de colonne '{name}' invalide. Il doit contenir seulement des lettres (minuscules ou majuscules) et '_'.")
             return False
         
         if name in blacklistWord:
-            print(f"Erreur : le nom de colonne {name}, porte un nom interdit.")
+            resultAPI.conflitError(f"Erreur : le nom de colonne '{name}' porte un nom interdit.")
             return False
 
         return True
@@ -525,12 +520,12 @@ class Parser:
     def verify_type(self,type)->bool:
         if type in authorizedType:
             return True
-        print(f"Le type {type} n'est pas valide vous devez choisir : INT,FLOAT,TEXT,BOOL,SERIAL")
+        resultAPI.syntaxError(f"Erreur : le type '{type}' n'est pas valide. Vous devez choisir parmi : INT, FLOAT, TEXT, BOOL, SERIAL.")
         return False
     
     def verify_pointVirgule(self,string)->bool:
         if string[-1] != ";":
-            print("L'expréssion doit finir par un ;")
+            resultAPI.syntaxError("Erreur : l'expression doit finir par un ';'.")
             self.expressionValide = False
             return False
         return True

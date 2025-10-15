@@ -1,6 +1,7 @@
 import getpass
 import hashlib
 import os
+from result import resultAPI
 DEV=True
 class AuthManager():
     
@@ -18,7 +19,8 @@ class AuthManager():
                 self.login()
                 print("\n")
             if self.maxTentative <= 0:
-                print("Trop de tentative")
+                resultAPI.unauthorized("Erreur : trop de tentatives de connexion.")
+
 
     def register(self):
         print("Créer votre compte")
@@ -30,7 +32,8 @@ class AuthManager():
             if password == password_verify:
                 password_match = True
             else:
-                print("Les mot de passe ne correspondent pas\n")
+                resultAPI.unauthorized("Erreur : les mots de passe ne correspondent pas.")
+
         
         self.create_file(self.hash(user),self.hash(password))
 
@@ -59,7 +62,7 @@ class AuthManager():
         if(userHash == storeUser and passwordHash == storePass):
             self.isConnected = True
         else:
-            print("Identifiant incorecte")
+            resultAPI.unauthorized("Erreur : identifiant incorrect.")
             self.maxTentative -= 1
 
     

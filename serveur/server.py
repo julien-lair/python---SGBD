@@ -1,5 +1,6 @@
 from auth_manager import AuthManager
 from database import Database
+from result import resultAPI
 DEV = False
 class Server:
 
@@ -16,7 +17,7 @@ class Server:
         auth = AuthManager()
         auth.new_connection()
         if not auth.isConnected:
-            print("echec de connection")
+            resultAPI.unauthorized("Échec de connexion : authentification requise ou invalide")
         
         print("Bienvenue sur le serveur :)")
 
@@ -33,9 +34,3 @@ class Server:
         while True:
             request = input("\n> ").strip()
             self.database.execute(request)
-
-    def response(self):
-        print("")
-    
-    def request(self):
-        print("")
