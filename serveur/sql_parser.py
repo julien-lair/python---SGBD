@@ -524,8 +524,10 @@ class Parser:
         return False
     
     def verify_pointVirgule(self,string)->bool:
-        if string[-1] != ";":
-            resultAPI.syntaxError("Erreur : l'expression doit finir par un ';'.")
-            self.expressionValide = False
-            return False
-        return True
+        if len(string) > 0:
+            if string[-1] != ";":
+                resultAPI.syntaxError("Erreur : l'expression doit finir par un ';'.")
+                self.expressionValide = False
+                return False
+            return True
+        

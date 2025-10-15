@@ -28,7 +28,11 @@ class Result:
         return self.show()
 
     def show(self):
-        print({"code": self.code,"error": self.error,"message": self.message})
-
+        return({"code": self.code,"error": self.error,"message": self.message})
+    
+    def reset(self):
+        self.code = None
+        self.error = None
+        self.message = None
 
 resultAPI = Result()
