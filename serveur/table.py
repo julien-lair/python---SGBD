@@ -253,7 +253,7 @@ class Table:
                 self.write_updateLine(line,delete=True)
         resultAPI.sucess("Les données sélectionnées ont bien été supprimées.")
     def describe(self):
-        data = {"table_name":self.name,"colonnes":json.dumps(self.columns),"serial":json.dumps(self.serialColumns)}
+        data = json.dumps({"table_name":self.name,"colonnes":json.dumps(self.columns)})
         resultAPI.sucess("",data)
         """
         print(f"Nom de la table : {self.name}\n")
