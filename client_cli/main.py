@@ -1,6 +1,8 @@
 import socket
 import json 
 import tabulate 
+import getpass
+import hashlib
 
 HOST = "127.0.0.1"
 PORT = 1234
@@ -11,7 +13,22 @@ def main():
         serveur.connect((HOST, PORT))
         print("Connecté au serveur !")
 
-        connected = True
+        connected = False
+        
+        print("Veuillez vous connectez :")
+        username = input("Username: ").strip()
+        password = getpass.getpass("Mot de passe : ")
+        password_hash = hashlib.sha512(password.encode('utf-8')).hexdigest()
+        creds = {"user":username, "password": password_hash}
+        serveur.send(json.dumps(creds).encode())
+        data = serveur.recv(4096).decode()
+        if json.loads(data)["statut"] == "sucess":
+            connected = True
+            print(json.loads(data)["message"])
+        else:
+            print(json.loads(data)["message"])
+            serveur.close()
+            
         while connected:
             cmd = input("> ").strip()
             if cmd.strip() == "exit":

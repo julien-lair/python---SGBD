@@ -2,25 +2,23 @@ import getpass
 import hashlib
 import os
 from result import resultAPI
-DEV=True
+from database import Database
+import json
+DEV=False
 class AuthManager():
     
     def __init__(self):
-        self.fileName = os.path.dirname(__file__) +  "/data/secure.db"
         self.isConnected = False
-        self.maxTentative = 3
-    def new_connection(self):
+        self.database = Database()
+    def new_connection(self,user,password):
         if DEV:
             self.isConnected = True
         else:
-            if not(self.file_exist()):
+            if self.secure_File_exist():#si une table avec les creds existe (si il a déjà créer son compte)
+                self.login(user,password)
+            else:
                 self.register()
-            while self.isConnected == False and self.maxTentative > 0:
-                self.login()
-                print("\n")
-            if self.maxTentative <= 0:
-                resultAPI.unauthorized("Erreur : trop de tentatives de connexion.")
-
+            
 
     def register(self):
         print("Créer votre compte")
@@ -34,55 +32,46 @@ class AuthManager():
             else:
                 resultAPI.unauthorized("Erreur : les mots de passe ne correspondent pas.")
 
-        
-        self.create_file(self.hash(user),self.hash(password))
+        #on créer la table et on ajoute les nouvelles informations 
+        sql = "CREATE TABLE secure (username TEXT, password TEXT);"
+        self.database.execute(sql)
 
+        sql2 = f"INSERT INTO secure (username, password) VALUES ('{user}', '{self.hash(password)}');"
+        self.database.execute(sql2)
         password = None
         password_verify = None
 
-    def create_file(self,username,password):
-        file = open(self.fileName, "w", encoding="utf-8")
-        file.write(f"{username}\n")
-        file.write(f"{password}\n")
-        file.close()
 
-    def login(self):
-        print("Veuillez vous connecter")
-        user = input("User : ").strip()
-        password = getpass.getpass("Mot de passe : ")
-
-        userHash = self.hash(user)
-        user = None 
-
-        passwordHash = self.hash(password)
-        password = None
-
-        storeUser,storePass = self.get_credential()
-
-        if(userHash == storeUser and passwordHash == storePass):
-            self.isConnected = True
-        else:
+    def login(self,user,password):
+        self.database.execute(f"SELECT password FROM secure WHERE username = '{user}';")
+        reusltData = resultAPI.show()["data"]
+        try:
+            storePass = json.loads(reusltData)["data"][0][0]
+            if password == storePass: #si les usernma eosnt équiavlent et les deux hash sont équiavalent
+                self.isConnected = True
+                resultAPI.sucess("Vous êtes connecté.",None)
+            else:
+                resultAPI.unauthorized("Erreur : identifiant incorrect.")
+        except IndexError:
+            #si l'index est une erreur, c'est que aucun retour dans le select
+            #donc l'username est faux
             resultAPI.unauthorized("Erreur : identifiant incorrect.")
-            self.maxTentative -= 1
+
+       
 
     
 
-    def get_credential(self):
-        try:
-            file = open(self.fileName, "r", encoding="utf-8")
-            lines = file.readlines()
-            file.close()
-            user = lines[0].strip()
-            password = lines[1].strip()
-            return user,password
-        except Exception as e:
-            print("Une erreur est survenue")
-            
     def hash(self,value):
         return hashlib.sha512(value.encode('utf-8')).hexdigest()
 
-    def file_exist(self):
-        return os.path.exists(self.fileName)
-        
+    def secure_File_exist(self)->bool:
+        sql = "DESCRIBE secure;"
+        self.database.execute(sql)
+        if resultAPI.show()["statut"] == "sucess":
+            #la table exist
+            return True
+        else:
+            return False
+
         
 

@@ -3,7 +3,6 @@ from database import Database
 from result import resultAPI
 import socket
 import threading
-from result import resultAPI
 import json
 DEV = False
 class Server:
@@ -28,14 +27,13 @@ class Server:
     def newClient(self,client):
         try:
             auth = AuthManager()
-            auth.new_connection()
-            if not auth.isConnected:
-                resultAPI.unauthorized("Échec de connexion : authentification requise ou invalide")
-                client.send(str("error").encode())
-                client.close()
-                return
+            #On récupère les id que le client à envoyer sous la forme {"user":xxx,"password":hash}
+            creds = json.loads(client.recv(4096).decode().strip())
             
-            while True:
+            auth.new_connection(creds["user"],creds["password"])
+            client.send(json.dumps(resultAPI.show()).encode() + b"\n") #on revoit le résultat de l'auth
+            
+            while True and auth.isConnected:
                 request = client.recv(4096).decode().strip()
                 self.database.execute(request)
                 client.send(json.dumps(resultAPI.show()).encode() + b"\n")

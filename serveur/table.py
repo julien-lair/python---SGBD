@@ -150,7 +150,7 @@ class Table:
                         try :
                             try :
                                 if self.select_where(line,parser.where):
-                                    result.append(line)
+                                    result.append(lineSelect)
                             except Exception:
                                 resultAPI.syntaxError("Erreur : la condition WHERE n'est pas correcte.")
                                 return
