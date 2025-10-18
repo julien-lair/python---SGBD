@@ -135,11 +135,16 @@ class Table:
                     result.append(line)
             else:
                 lineSelect = []
+                #On réucpère les noms de colonnes qui doivent être retourner
                 for colChoice in parser.columns_name:
-                    for col in line:
-                        if col["colonne"] == colChoice:
-                            lineSelect.append(col)
-                            break
+                    if self.verify_if_coloumns_exist(colChoice):
+                        for col in line:
+                            if col["colonne"] == colChoice:
+                                lineSelect.append(col)
+                                break
+                    else:
+                        resultAPI.syntaxError(f"Erreur : la colonne '{colChoice}' n'éxiste pas.")
+
                 if len(lineSelect)> 0:
                     if whereCondition:
                         try :
@@ -176,29 +181,23 @@ class Table:
             if len(result) > parser.limit and parser.offset == None:
                 result = result[:parser.limit]
         
-        resultAPI.sucess("",json.dumps(result))   
-        #PARTIE N : affichage résultat 
-        """
-        if len(result) > 0:
-            tailleColonne = 12
 
-            print("-" * (len(result[0]) * (tailleColonne+2) +1))
-            for _ in result[0]:
-                print(f'|{" "*(tailleColonne+1)}',end="")
-            print("|")
-            for col in result[0]:
-                print(f'| {col["colonne"]}{" "*(tailleColonne-len(str(col["colonne"])))}',end="")
-            print("|")
-            for _ in result[0]:
-                print(f'|{" "*(tailleColonne + 1)}',end="")
-            print("|")
-            print("-" * (len(result[0]) * (tailleColonne+2) +1))
-            for line in result:
-                for col in line:
-                    print(f'| {col["value"]}{" "*(tailleColonne-len(str(col["value"])))}',end="")
-                print("|")
-                print("-" * (len(result[0]) * (tailleColonne+2) +1))
-        """
+        #on retourne les nom de colonnes sélectionner (cas partiiculier si *) 
+        columns_name = []
+        if parser.columns_name[0] == "*":
+            columns_name = self.get_all_column_name()
+        else:
+            columns_name = parser.columns_name
+        #On retourne les données récupérer avec la condition, bien formaté pour le résultat en json
+        data = []
+        for line in result:
+            dataTmp = []
+            for col in line:
+                dataTmp.append(col["value"])
+            data.append(dataTmp)
+        resultToSend = json.dumps({"table_name":self.name,"colonnes":columns_name,"data":data})
+        resultAPI.sucess("Requête éxécutée avec succès.",resultToSend)  
+      
     def get_value_of_col_in_row(self, row, colName):
         for col in row:
             if col["colonne"] == colName:
@@ -251,24 +250,11 @@ class Table:
                 #On supprime la ligne
                 self.lines.remove(line)
                 self.write_updateLine(line,delete=True)
-        resultAPI.sucess("Les données sélectionnées ont bien été supprimées.")
+        resultAPI.sucess("Les données sélectionnées ont bien été supprimées.",None)
     def describe(self):
         data = json.dumps({"table_name":self.name,"colonnes":json.dumps(self.columns)})
-        resultAPI.sucess("",data)
-        """
-        print(f"Nom de la table : {self.name}\n")
-
-        print("Colonnes :")
-        for col in self.columns:
-            print(f'  - {col["colonne"]} ({col["type"]})')
-
-        if self.serialColumns:
-            print("\nColonnes de type SERIAL :")
-            for serial in self.serialColumns:
-                print(f'  - {serial["colonne"]} (compteur = {serial["value"]})')
-        else:
-            print("\nAucune colonne de type SERIAL.")
-        """
+        resultAPI.sucess("Requête éxécutée avec succès",data)
+      
     def write_line(self,lines):
         self.update_serial()
         for line in lines:
@@ -563,7 +549,16 @@ class Table:
                     return False
         return True
     
+    def verify_if_coloumns_exist(self, colName)->bool:
+        for col in self.columns:
+            if col["colonne"] == colName:
+                return True
+        return False
     def select_where(self, line, RPN: ShuntingYard)->bool:
         return RPN.condition_respected(line)
     
-   
+    def get_all_column_name(self):
+        columns_name = []
+        for col in self.columns:
+            columns_name.append(col["colonne"])
+        return columns_name

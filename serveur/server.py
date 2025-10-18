@@ -41,5 +41,7 @@ class Server:
                 client.send(json.dumps(resultAPI.show()).encode() + b"\n")
                 resultAPI.reset()
         except ConnectionResetError:
-            print("Client déconnecter")
+            print("Client déconnecté")
+        except BrokenPipeError:
+            print("Client déconnecté")
 

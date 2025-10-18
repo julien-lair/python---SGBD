@@ -50,7 +50,7 @@ class Database:
         #DROP TABLE name 
         #Vérification si la table éxiste
         if(not(os.path.exists(self.databaseDir + name + self.fileExtension))):
-            resultAPI(f"Erreur : la table '{name}' n'existe pas.")
+            resultAPI.notFound(f"Erreur : la table '{name}' n'existe pas.")
             return
         os.remove(self.databaseDir + name + self.fileExtension)
 
@@ -59,7 +59,7 @@ class Database:
             if table.name == name:
                 self.tables.remove(table)
                 break
-        resultAPI.sucess(f"La table '{name}' à été supprimée.")
+        resultAPI.sucess(f"La table '{name}' à été supprimée.",None)
 
     def load_table(self):
         #On récupère toutes les tables et on les stockes dans un array 
@@ -76,6 +76,8 @@ class Database:
     def execute(self,request):
         parser = Parser()
         parser.parse(request)
+        resultAPI.setCommande(request)
+        resultAPI.setAction(parser.action)
         if parser.expressionValide:
             if parser.action == "CREATE":
                 self.create_table(parser.table, parser.columns_name, parser.columns_type)
