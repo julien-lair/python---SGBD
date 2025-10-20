@@ -75,7 +75,6 @@ class Parser:
                             valueWithoutSpace = value.strip()
                             col = valueWithoutSpace.split()[0]
                             type = valueWithoutSpace.split()[1]
-
                             if self.verify_colomn_name(col.strip()):
                                 if col.strip() in self.columns_name:
                                     resultAPI.syntaxError("Deux colonnes portent le même nom.")
@@ -84,12 +83,12 @@ class Parser:
                             else:
                                 resultAPI.syntaxError(f"Le nom {col} n'est pas valide")
 
-
+                            
                             if self.verify_type(type.strip()):
                                 self.columns_type.append(type.strip())
                             else:
                                 resultAPI.syntaxError(f"Erreur : le type {type} n'est pas valide")
-                        
+                                return
                        
                         self.expressionValide = True
 

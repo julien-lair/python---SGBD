@@ -12,6 +12,30 @@ class Database:
         self.fileExtension = ".db"
         self.tables: List[Table] = []
         self.load_table()
+
+    def execute(self,request):
+        parser = Parser()
+        parser.parse(request)
+        resultAPI.setCommande(request)
+        resultAPI.setAction(parser.action)
+        if parser.expressionValide:
+            if parser.action == "CREATE":
+                self.create_table(parser.table, parser.columns_name, parser.columns_type)
+            elif parser.action == "DROP":
+                self.drop_table(parser.table)
+            elif parser.action == "INSERT":
+                self.insert_table(parser)
+            elif parser.action == "DESCRIBE":
+                self.describe_table(parser)
+            elif parser.action == "SELECT":
+                self.select_table(parser)
+            elif parser.action == "UPDATE":
+                self.update_table(parser)
+            elif parser.action == "DELETE":
+                self.delete_table(parser)
+            else:
+                resultAPI.syntaxError("Action SQL non reconnue.")
+    
     def create_table(self, name, columns : list[str], type : list[str]):
         #Vérification si la table existe déjà
         if(os.path.exists(self.databaseDir + name + self.fileExtension)):
@@ -21,7 +45,6 @@ class Database:
 
         #Vérification d'un champs "_id" de type SERIAL 
         verificationId = False 
-        
         if "_id" in columns:
             if(type[columns.index("_id")] == "SERIAL"):
                 verificationId = True 
@@ -33,7 +56,6 @@ class Database:
             #on ajoute un champ _id au début
             columns.insert(0,"_id")
             type.insert(0,"SERIAL")
-
 
         header = self.create_header(name,columns,type)
 
@@ -73,28 +95,6 @@ class Database:
             return
                 
     
-    def execute(self,request):
-        parser = Parser()
-        parser.parse(request)
-        resultAPI.setCommande(request)
-        resultAPI.setAction(parser.action)
-        if parser.expressionValide:
-            if parser.action == "CREATE":
-                self.create_table(parser.table, parser.columns_name, parser.columns_type)
-            elif parser.action == "DROP":
-                self.drop_table(parser.table)
-            elif parser.action == "INSERT":
-                self.insert_table(parser)
-            elif parser.action == "DESCRIBE":
-                self.describe_table(parser)
-            elif parser.action == "SELECT":
-                self.select_table(parser)
-            elif parser.action == "UPDATE":
-                self.update_table(parser)
-            elif parser.action == "DELETE":
-                self.delete_table(parser)
-            else:
-                resultAPI.syntaxError("Action SQL non reconnue.")
     
     def create_header(self,name,columns,type):
         """
