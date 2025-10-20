@@ -278,22 +278,19 @@ def run_tests():
     loader = unittest.TestLoader()
     suite = unittest.TestSuite()
     
-    # Ajout des tests
+    # On apelle nos différents class de tests
     suite.addTests(loader.loadTestsFromTestCase(TestParser))
     suite.addTests(loader.loadTestsFromTestCase(TestWhere))
     suite.addTests(loader.loadTestsFromTestCase(TestTable))
     
-    # Exécution avec rapport détaillé
+    # on éxécute tous les tests
     runner = unittest.TextTestRunner(verbosity=2)
     result = runner.run(suite)
-    
-    # Retourne True si tous les tests passent
     return result.wasSuccessful()
 
 
 if __name__ == '__main__':
-    # Exécution des tests
-    success = run_tests()
-    
-    # Code de sortie approprié
-    exit(0 if success else 1)
+    if run_tests():
+        exit(0)
+    else:
+        exit(1)

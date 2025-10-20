@@ -29,7 +29,6 @@ class Parser:
         else:
                 return
         
-
         #On regarde l'action 
         action = stringElement[0]
         if action == "CREATE":
@@ -51,8 +50,6 @@ class Parser:
             self.expressionValide = False
 
     def create(self, string):
-        #   CREATE TABLE users (id SERIAL, firstname TEXT, age INT, salary FLOAT, disabled BOOL);
-        # CREATE TABLE sjs (dhjsgsdg TEXT,              hdhdhdhdhdhdhd                ZFTYFZFZYGFZF        );   test avec des espaces
         self.action = "CREATE"
         expressionFirstPart = string.strip().split("(")[0].split()
         try:
@@ -100,7 +97,6 @@ class Parser:
             resultAPI.syntaxError(f"L'expréssion n'est pas valide")
 
     def drop(self,expression):
-        #   DROP TABLE users
         self.action = "DROP"
 
         try:
@@ -118,10 +114,6 @@ class Parser:
             resultAPI.syntaxError(f"L'expréssion n'est pas valide")
 
     def insert(self,string):
-        """
-        INSERT INTO users VALUES ('Richard', 25, 20000, false);
-        INSERT INTO users (firstname, age, salary, disabled) VALUES ('Richard', 25, 20000, false);
-        """
         self.action = "INSERT"
         expressionFirstPart = string.strip().split("(")[0].split()
         try:
@@ -316,7 +308,7 @@ class Parser:
 
         whereCondition = string.split("WHERE")[1].strip()
         
-        #On enleve tous ce qui pourrait être après le WHERE : 
+        #On enlève tous ce qui pourrait être après le WHERE : 
         wordlist = ["ORDER BY","LIMIT"] 
         for word in wordlist:
             whereCondition = whereCondition.split(word)[0].strip()
@@ -357,12 +349,11 @@ class Parser:
 
 
         self.where = ShuntingYard(whereCondition)
-
-    
+ 
     def orderByCondition(self,string) -> bool:
         orderByCondition = string.split("ORDER BY")[1].strip()
         
-        #On enleve tous ce qui pourrait être après le WHERE : 
+        #On enlève tous ce qui pourrait être après le WHERE : 
         wordlist = ["WHERE","LIMIT","OFFSET"] 
         for word in wordlist:
             orderByCondition = orderByCondition.split(word)[0].strip()
